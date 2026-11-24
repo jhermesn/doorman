@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { type BoxMemory, MEMORY_FILES } from "../box.js";
 import type { Deps } from "../clients.js";
 import type { RepoConfig } from "../config.js";
-import { ownerRepo } from "../github.js";
+import { ownerRepo, upsertComment } from "../github.js";
 import { type RunRecord, sha256, type Verdict } from "../runlog.js";
 import { text } from "../text.js";
 import { renderReport } from "./report.js";
@@ -115,7 +115,7 @@ export async function triageIssue(
   });
 
   if (opts.write && repo.write) {
-    await github.rest.issues.createComment({ ...target, body: report });
+    await upsertComment(github, target, report);
     const label = LABELS[verdict];
     if (label) await github.rest.issues.addLabels({ ...target, labels: [label] });
   }

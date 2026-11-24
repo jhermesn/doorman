@@ -1,6 +1,6 @@
 import type { Deps } from "../clients.js";
 import type { RepoConfig } from "../config.js";
-import { ownerRepo } from "../github.js";
+import { ownerRepo, upsertComment } from "../github.js";
 import { fill, text } from "../text.js";
 import { details, fence, runIcons } from "./report.js";
 import { REPRO_FILE } from "./reproduce.js";
@@ -98,7 +98,7 @@ export async function checkPr(
       context: "doorman/repro",
       description: verdict.description.slice(0, 140),
     });
-    await deps.github.rest.issues.createComment({ ...target, issue_number: number, body: report });
+    await upsertComment(deps.github, { ...target, issue_number: number }, report);
   }
   return { issue, base, head, ...verdict, report };
 }

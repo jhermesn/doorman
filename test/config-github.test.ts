@@ -2,7 +2,7 @@ import type { BoxClient } from "box-node-sdk";
 import { describe, expect, it } from "vitest";
 import { BoxMemory, ProtectedFileError } from "../src/box.js";
 import { ConfigError, parseConfig } from "../src/config.js";
-import { createGitHub, WriteNotAllowedError } from "../src/github.js";
+import { createGitHub, upsertComment, WriteNotAllowedError } from "../src/github.js";
 
 const valid = {
   connectors: { github: "g", typesafe: "t", ollama: "o", pinecone: "p", box: "b" },
@@ -90,4 +90,35 @@ describe("Box memory", () => {
       );
     },
   );
+});
+
+describe("upsertComment", () => {
+  const run = async (existing: { id: number; body: string; author_association: string }[]) => {
+    const calls: string[] = [];
+    const fetch: typeof globalThis.fetch = async (input, init) => {
+      calls.push(
+        `${init?.method ?? "GET"} ${String(input).replace("https://gateway.test/github/c", "")}`,
+      );
+      return Response.json(init?.method === "GET" || !init?.method ? existing : {});
+    };
+    const github = createGitHub("https://gateway.test/github/c", new Set(["acme/widgets"]), fetch);
+    await upsertComment(github, { owner: "acme", repo: "widgets", issue_number: 4 }, "report");
+    return calls.at(-1);
+  };
+
+  it.each([
+    ["no earlier report", [], "POST /repos/acme/widgets/issues/4/comments"],
+    [
+      "an earlier report by the owner",
+      [{ id: 9, body: "<!-- doorman -->\nold", author_association: "OWNER" }],
+      "PATCH /repos/acme/widgets/issues/comments/9",
+    ],
+    [
+      "a stranger's comment carrying the marker",
+      [{ id: 9, body: "<!-- doorman -->\nfake", author_association: "NONE" }],
+      "POST /repos/acme/widgets/issues/4/comments",
+    ],
+  ])("given %s, when Doorman reports, then it sends %s", async (_case, existing, expected) => {
+    expect(await run(existing)).toBe(expected);
+  });
 });
