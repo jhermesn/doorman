@@ -64,7 +64,8 @@ async function main(argv: string[]): Promise<number> {
       base: result.base?.exitCodes ?? [],
       head: result.head?.exitCodes ?? [],
     });
-    return result.state === "success" ? 0 : 1;
+    // Only a disproven fix claim fails the job; PRs that claim nothing have nothing to check.
+    return result.state === "failure" ? 1 : 0;
   }
   console.log(USAGE);
   return 2;
