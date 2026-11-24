@@ -56,7 +56,7 @@ function systemPrompt(ctx: ReproContext): string {
 
 export async function reproduce(
   model: LanguageModel,
-  jev: TypeSafeClient,
+  jev: TypeSafeClient | undefined,
   workers: Workers,
   ctx: ReproContext,
 ): Promise<ReproOutcome> {
@@ -69,9 +69,9 @@ export async function reproduce(
       description: t.tools.run,
       inputSchema: z.object({ cmd: z.string() }),
       execute: async ({ cmd }) => {
-        const step: Step = { cmd, gate: await gate(jev, cmd) };
+        const step: Step = { cmd, ...(jev && { gate: await gate(jev, cmd) }) };
         steps.push(step);
-        if (step.gate.decision === "block") {
+        if (step.gate?.decision === "block") {
           return t.results.blocked;
         }
         const r = await workers.run(ctx.worker, cmd, {
@@ -126,7 +126,13 @@ export async function reproduce(
     });
   }
 
-  const usage = { steps, tokensIn, tokensOut, jevCalls: steps.length, crashed };
+  const usage = {
+    steps,
+    tokensIn,
+    tokensOut,
+    jevCalls: steps.filter((s) => s.gate).length,
+    crashed,
+  };
   if (crashed) {
     return {
       ...usage,

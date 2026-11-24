@@ -22,10 +22,17 @@ const ConfigSchema = z
   .object({
     /** Sprites connector gateway; an attached resource, so it can point elsewhere (IV). */
     gateway: z.url().default("https://api.sprites.dev/v1/gateway"),
-    connectors: z.object({ github: text, typesafe: text, ollama: text, pinecone: text, box: text }),
+    connectors: z.object({
+      github: text,
+      ollama: text,
+      /** TypeSafe Jev: issue screening and the command gate. */
+      typesafe: text.optional(),
+      /** Pinecone: duplicate detection. */
+      pinecone: z.object({ id: text, index: text.default("doorman-issues") }).optional(),
+      /** Box: maintainer notes, a run log and an archive of reproductions. */
+      box: z.object({ id: text, folderId: text }).optional(),
+    }),
     models: z.object({ reproduce: text }),
-    pinecone: z.object({ index: text }),
-    box: z.object({ folderId: text }),
     workerPrefix: text,
     spritesTokenFile: text,
     repos: z.array(RepoSchema).min(1),

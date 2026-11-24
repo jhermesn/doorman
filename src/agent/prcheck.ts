@@ -1,8 +1,8 @@
 import type { Deps } from "../clients.js";
 import type { RepoConfig } from "../config.js";
-import { ownerRepo, upsertComment } from "../github.js";
+import { findDoormanComment, ownerRepo, upsertComment } from "../github.js";
 import { fill, text } from "../text.js";
-import { details, fence, runIcons } from "./report.js";
+import { details, fence, runIcons, scriptFromReport } from "./report.js";
 import { REPRO_FILE } from "./reproduce.js";
 import { prepareWorker } from "./triage.js";
 import { type Verification, verify } from "./verify.js";
@@ -51,6 +51,19 @@ async function runAt(
   return verify(deps.workers, repo.worker, repo.dir, verifyRuns, commandTimeoutMs);
 }
 
+/** Box keeps the archive when configured; otherwise the script comes from Doorman's issue report. */
+async function storedRepro(deps: Deps, repo: string, issue: number): Promise<string | undefined> {
+  const archived = deps.box
+    ? await deps.box.read(await deps.box.folderFor(repo), `repro-${issue}.sh`)
+    : undefined;
+  if (archived) return archived;
+  const comment = await findDoormanComment(deps.github, {
+    ...ownerRepo(repo),
+    issue_number: issue,
+  });
+  return comment?.body ? scriptFromReport(comment.body) : undefined;
+}
+
 function row(label: string, v: Verification): string {
   return `| **${label}** | ${runIcons(v)} | ${v.outcome} |`;
 }
@@ -64,8 +77,7 @@ export async function checkPr(
   const target = ownerRepo(repo.repo);
   const { data: pr } = await deps.github.rest.pulls.get({ ...target, pull_number: number });
   const issue = claimedIssue(pr.title, pr.body);
-  const folderId = await deps.box.folderFor(repo.repo);
-  const script = issue ? await deps.box.read(folderId, `repro-${issue}.sh`) : undefined;
+  const script = issue ? await storedRepro(deps, repo.repo, issue) : undefined;
 
   if (!issue || !script) {
     const description = issue ? fill(t.status.noRepro, { issue }) : t.status.noClaim;

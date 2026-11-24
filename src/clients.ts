@@ -14,29 +14,36 @@ const NO_KEY = "set-by-sprites-gateway";
 export interface Deps {
   config: Config;
   github: Octokit;
-  jev: TypeSafeClient;
   model: LanguageModel;
-  issueIndex: (namespace: string) => Index;
-  box: BoxMemory;
   workers: Workers;
+  /** Optional connectors: each feature that needs one switches off without it. */
+  jev?: TypeSafeClient;
+  issueIndex?: (namespace: string) => Index;
+  box?: BoxMemory;
 }
 
 /** Every provider is reached through its Sprites connector, so Doorman holds no provider keys. */
 export function createDeps(config: Config): Deps {
-  const via = (provider: keyof Config["connectors"]) =>
-    `${config.gateway}/${provider}/${config.connectors[provider]}`;
-  const pinecone = new Pinecone({ apiKey: NO_KEY });
+  const { github, ollama, typesafe, pinecone, box } = config.connectors;
+  const via = (provider: string, id: string) => `${config.gateway}/${provider}/${id}`;
   const writable = new Set(config.repos.filter((r) => r.write).map((r) => r.repo));
-  const ollama = createOpenAICompatible({ name: "ollama", baseURL: `${via("ollama")}/v1` });
+  const openai = createOpenAICompatible({ name: "ollama", baseURL: `${via("ollama", ollama)}/v1` });
 
   return {
     config,
-    github: createGitHub(via("github"), writable),
-    jev: new TypeSafeClient({ baseURL: via("typesafe"), apiKey: NO_KEY }),
-    model: ollama(config.models.reproduce),
-    issueIndex: (namespace) =>
-      pinecone.index({ host: `${via("pinecone")}/indexes/${config.pinecone.index}`, namespace }),
-    box: new BoxMemory(createBox(via("box"), NO_KEY), config.box.folderId),
+    github: createGitHub(via("github", github), writable),
+    model: openai(config.models.reproduce),
     workers: new SpritesWorkers(config.spritesTokenFile, config.workerPrefix),
+    ...(typesafe && {
+      jev: new TypeSafeClient({ baseURL: via("typesafe", typesafe), apiKey: NO_KEY }),
+    }),
+    ...(pinecone && {
+      issueIndex: (namespace: string) =>
+        new Pinecone({ apiKey: NO_KEY }).index({
+          host: `${via("pinecone", pinecone.id)}/indexes/${pinecone.index}`,
+          namespace,
+        }),
+    }),
+    ...(box && { box: new BoxMemory(createBox(via("box", box.id), NO_KEY), box.folderId) }),
   };
 }

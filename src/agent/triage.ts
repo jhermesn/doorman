@@ -65,8 +65,8 @@ export async function triageIssue(
   const { data: issue } = await github.rest.issues.get(target);
   if (issue.pull_request) throw new Error(`#${number} is a pull request; use check-pr`);
 
-  const index = deps.issueIndex(namespaceFor(repo.repo));
-  const folderId = await box.folderFor(repo.repo);
+  const index = deps.issueIndex?.(namespaceFor(repo.repo));
+  const folderId = box ? await box.folderFor(repo.repo) : undefined;
   const screening = await screen(jev, index, issue);
   let verdict = earlyVerdict(screening);
 
@@ -83,7 +83,7 @@ export async function triageIssue(
       dir: repo.dir,
       issueTitle: issue.title,
       issueBody: issue.body ?? "",
-      memory: await loadNotes(box, folderId),
+      memory: box && folderId ? await loadNotes(box, folderId) : "",
       maxSteps: config.limits.stepsPerJob,
       commandTimeoutMs: config.limits.commandTimeoutMs,
     });
@@ -110,7 +110,8 @@ export async function triageIssue(
     ...(screening.duplicateOf ? { duplicateOf: screening.duplicateOf.number } : {}),
     ...(verification ? { verification } : {}),
     ...(script ? { script } : {}),
-    blockedCommands: repro?.steps.filter((s) => s.gate.decision === "block").length ?? 0,
+    blockedCommands: repro?.steps.filter((s) => s.gate?.decision === "block").length ?? 0,
+    gated: Boolean(jev),
     wallMs,
   });
 
@@ -119,7 +120,7 @@ export async function triageIssue(
     const label = LABELS[verdict];
     if (label) await github.rest.issues.addLabels({ ...target, labels: [label] });
   }
-  if (opts.mode === "demo") {
+  if (opts.mode === "demo" && box && folderId) {
     if (script) await box.write(folderId, `repro-${number}.sh`, script);
     await box.append(
       folderId,
@@ -127,7 +128,7 @@ export async function triageIssue(
       `- ${new Date().toISOString()} #${number} → **${verdict}**`,
     );
   }
-  await index.upsertRecords({
+  await index?.upsertRecords({
     records: [
       {
         _id: `issue-${number}`,

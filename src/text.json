@@ -75,6 +75,7 @@
     "sandboxValue": "fresh checkpoint · package registries only · no credentials",
     "gate": "Gate",
     "gateValue": "{count} command(s) refused",
+    "gateOff": "off: no Jev connector, worker policies only",
     "script": "Reproduction script",
     "output": "Output of the last run",
     "footer": "<sub>Doorman reproduces reports inside an isolated Fly.io Sprite and gates every command. It never pushes code. Not right? Reply and a maintainer will take it from here.</sub>"

@@ -68,10 +68,18 @@ Each layer was tested on a real Sprite. The commands and results are in [docs/sp
 
 ## Quickstart
 
-You need a Fly.io account with Sprites, the `sprite` CLI, Node 24, and accounts for TypeSafe, Ollama Cloud, Pinecone and Box.
+You need a Fly.io account with Sprites, the `sprite` CLI, Node 24 and an Ollama Cloud account. GitHub and Ollama are the only required connectors; each optional one adds a feature and Doorman runs without it:
 
-1. **Connectors.** In the Fly.io dashboard, add the GitHub, Box, TypeSafeAI, Ollama and Pinecone connectors. Give each an access policy with name prefix `doorman-home`. For GitHub, also restrict endpoints to your repositories (see [docs/security.md](docs/security.md)).
-2. **Pinecone index.** Create an index named `doorman-issues` with integrated embedding (`llama-text-embed-v2`). The connector forwards data operations only, so this step runs once from your machine.
+| Connector | Required | Without it                                                                               |
+| :-------- | :------: | :--------------------------------------------------------------------------------------- |
+| GitHub    |    ✅    | Nothing to read or report to                                                             |
+| Ollama    |    ✅    | No model to drive the reproduction                                                       |
+| TypeSafe  |          | No injection screen and no command gate; the worker policies still contain every command |
+| Pinecone  |          | No duplicate detection                                                                   |
+| Box       |          | No maintainer notes; PR checks read the reproduction from Doorman's issue comment        |
+
+1. **Connectors.** In the Fly.io dashboard, add the GitHub and Ollama connectors, plus whichever optional ones you want. Give each an access policy with name prefix `doorman-home`. For GitHub, also restrict endpoints to your repositories (see [docs/security.md](docs/security.md)).
+2. **Pinecone index** (optional). Create an index named `doorman-issues` with integrated embedding (`llama-text-embed-v2`). The connector forwards data operations only, so this step runs once from your machine.
 3. **Worker.** Bootstrap a worker for each repository:
 
    ```bash

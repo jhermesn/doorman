@@ -57,6 +57,7 @@ Endpoint lists match paths, not HTTP methods, and `/repos/x/y/*` does not match 
 
 - The restricted Sprites token can still change the policies of `doorman-w-*` Sprites. Doorman's client exposes no policy operations, but a compromise of the home Sprite would.
 - Jev is a classifier, not an access control. The Sprite policies are what hold if it is wrong.
+- Without the TypeSafe connector there is no injection screen and no gate: every report reaches the worker and every command runs there. The comment says so ("Gate: off"), and the worker policies are the only layer.
 - `sudo` commands pass the gate (they are harmless here) and are refused by the privileges policy instead.
 
 Report vulnerabilities as described in [SECURITY.md](../SECURITY.md).
