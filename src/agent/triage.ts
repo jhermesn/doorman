@@ -3,7 +3,7 @@ import { type BoxMemory, MEMORY_FILES } from "../box.js";
 import type { Deps } from "../clients.js";
 import type { RepoConfig } from "../config.js";
 import { ownerRepo } from "../github.js";
-import { appendRun, type RunRecord, sha256, type Verdict } from "../runlog.js";
+import { type RunRecord, sha256, type Verdict } from "../runlog.js";
 import { text } from "../text.js";
 import { renderReport } from "./report.js";
 import { REPRO_FILE, type ReproOutcome, reproduce } from "./reproduce.js";
@@ -161,7 +161,6 @@ export async function triageIssue(
     restoreMs,
     wallMs,
   };
-  appendRun(config.runLog, record);
   return { verdict, report, record };
 }
 

@@ -20,13 +20,14 @@ const RepoSchema = z.object({
 
 const ConfigSchema = z
   .object({
+    /** Sprites connector gateway; an attached resource, so it can point elsewhere (IV). */
+    gateway: z.url().default("https://api.sprites.dev/v1/gateway"),
     connectors: z.object({ github: text, typesafe: text, ollama: text, pinecone: text, box: text }),
     models: z.object({ reproduce: text }),
     pinecone: z.object({ index: text }),
     box: z.object({ folderId: text }),
     workerPrefix: text,
     spritesTokenFile: text,
-    runLog: text,
     repos: z.array(RepoSchema).min(1),
     limits: z
       .object({

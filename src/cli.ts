@@ -12,7 +12,14 @@ const USAGE = `Usage:
   doorman check-pr <owner/repo> <pr> [--dry-run] [--config <file>]
 
   --dry-run   print the report instead of posting it
-  --config    defaults to ~/.config/doorman/config.json`;
+  --config    defaults to $DOORMAN_CONFIG, then ~/.config/doorman/config.json
+
+  The report goes to stdout; one JSON event per run goes to stderr.`;
+
+/** Logs are an event stream on stderr (twelve-factor XI); whoever runs Doorman routes them. */
+function emit(event: Record<string, unknown>): void {
+  console.error(JSON.stringify({ ts: new Date().toISOString(), service: "doorman", ...event }));
+}
 
 async function main(argv: string[]): Promise<number> {
   const { values, positionals } = parseArgs({
@@ -20,7 +27,10 @@ async function main(argv: string[]): Promise<number> {
     allowPositionals: true,
     options: {
       "dry-run": { type: "boolean", default: false },
-      config: { type: "string", default: join(homedir(), ".config/doorman/config.json") },
+      config: {
+        type: "string",
+        default: process.env.DOORMAN_CONFIG ?? join(homedir(), ".config/doorman/config.json"),
+      },
       help: { type: "boolean", short: "h", default: false },
     },
   });
@@ -37,13 +47,23 @@ async function main(argv: string[]): Promise<number> {
   if (command === "triage") {
     const result = await triageIssue(deps, repo, number, { mode: "demo", write });
     console.log(result.report);
-    console.error(`\nverdict: ${result.verdict} · ${(result.record.wallMs / 1000).toFixed(1)}s`);
+    emit({ level: "info", event: "triage", ...result.record });
     return 0;
   }
   if (command === "check-pr") {
     const result = await checkPr(deps, repo, number, { write });
     console.log(result.report);
-    console.error(`\nstatus: ${result.state} · ${result.description}`);
+    emit({
+      level: "info",
+      event: "check-pr",
+      repo: repo.repo,
+      ref: number,
+      issue: result.issue ?? null,
+      state: result.state,
+      description: result.description,
+      base: result.base?.exitCodes ?? [],
+      head: result.head?.exitCodes ?? [],
+    });
     return result.state === "success" ? 0 : 1;
   }
   console.log(USAGE);
@@ -53,7 +73,7 @@ async function main(argv: string[]): Promise<number> {
 main(process.argv.slice(2)).then(
   (code) => process.exit(code),
   (error: unknown) => {
-    console.error(`doorman: ${error instanceof Error ? error.message : String(error)}`);
+    emit({ level: "error", message: error instanceof Error ? error.message : String(error) });
     process.exit(1);
   },
 );

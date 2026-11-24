@@ -6,7 +6,7 @@
 | Dependencies | Official SDKs pointed at the Sprites gateway: `@fly/sprites`, `@octokit/rest`, `@typesafe-ai/sdk`, `@pinecone-database/pinecone`, `box-node-sdk`, and the AI SDK (`ai`, `@ai-sdk/openai-compatible`) for Ollama; `zod` for config |
 | Dev tools    | Vitest, Biome, `tsc`                                                                                                                                                                                                              |
 | Models       | Ollama Cloud for the reproduction loop; TypeSafe Jev for typed decisions                                                                                                                                                          |
-| Storage      | Pinecone (integrated embedding) for issue similarity; Box for notes and stored reproductions; `runs.jsonl` on the home Sprite                                                                                                     |
+| Storage      | Pinecone (integrated embedding) for issue similarity; Box for notes and stored reproductions. Run events go to stderr; the caller keeps them (for example `2>> runs.jsonl`)                                                       |
 
 ## Commands
 
