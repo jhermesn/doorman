@@ -1,7 +1,6 @@
 import { createHash } from "node:crypto";
 import { appendFileSync, mkdirSync } from "node:fs";
 import { dirname } from "node:path";
-import { redact } from "./redact.js";
 
 export type Verdict =
   | "confirmed"
@@ -46,12 +45,8 @@ export function sha256(text: string): string {
   return createHash("sha256").update(text).digest("hex");
 }
 
-/** One JSON line per job. Issue text is stored only as a hash; commands are redacted. */
+/** One JSON line per job. Issue text is stored only as a hash. */
 export function appendRun(path: string, record: RunRecord): void {
   mkdirSync(dirname(path), { recursive: true });
-  const safe: RunRecord = {
-    ...record,
-    steps: record.steps.map((s) => ({ ...s, cmd: redact(s.cmd) })),
-  };
-  appendFileSync(path, `${JSON.stringify(safe)}\n`);
+  appendFileSync(path, `${JSON.stringify(record)}\n`);
 }

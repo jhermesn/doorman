@@ -1,15 +1,9 @@
 #!/usr/bin/env node
 import { parseArgs } from "node:util";
 import { checkPr } from "./agent/prcheck.js";
-import { type Deps, triageIssue } from "./agent/triage.js";
-import { BoxMemory } from "./box.js";
+import { triageIssue } from "./agent/triage.js";
+import { createDeps } from "./clients.js";
 import { loadConfig, repoConfig } from "./config.js";
-import { GitHub } from "./github.js";
-import { createHttpClient } from "./http.js";
-import { Jev } from "./jev.js";
-import { Ollama } from "./ollama.js";
-import { IssueMemory } from "./pinecone.js";
-import { SpritesWorkers } from "./workers.js";
 
 const USAGE = `Usage:
   doorman triage <owner/repo> <issue> [--dry-run] [--config <file>]
@@ -17,21 +11,6 @@ const USAGE = `Usage:
 
   --dry-run   print the report instead of posting it
   --config    defaults to ./doorman.config.json`;
-
-function deps(configPath: string): Deps {
-  const config = loadConfig(configPath);
-  const http = createHttpClient();
-  const writable = new Set(config.repos.filter((r) => r.write).map((r) => r.repo));
-  return {
-    config,
-    github: new GitHub(http, config.connectors.github, writable),
-    jev: new Jev(http, config.connectors.typesafe),
-    ollama: new Ollama(http, config.connectors.ollama),
-    issues: new IssueMemory(http, config.connectors.pinecone, config.pinecone.index),
-    box: new BoxMemory(http, config.connectors.box, config.box.folderId),
-    workers: new SpritesWorkers(config.spritesTokenFile, config.workerPrefix),
-  };
-}
 
 async function main(argv: string[]): Promise<number> {
   const { values, positionals } = parseArgs({
@@ -49,18 +28,18 @@ async function main(argv: string[]): Promise<number> {
     console.log(USAGE);
     return values.help ? 0 : 2;
   }
-  const d = deps(values.config);
-  const repo = repoConfig(d.config, repoName);
+  const deps = createDeps(loadConfig(values.config));
+  const repo = repoConfig(deps.config, repoName);
   const write = !values["dry-run"];
 
   if (command === "triage") {
-    const result = await triageIssue(d, repo, number, { mode: "demo", write });
+    const result = await triageIssue(deps, repo, number, { mode: "demo", write });
     console.log(result.report);
     console.error(`\nverdict: ${result.verdict} · ${(result.record.wallMs / 1000).toFixed(1)}s`);
     return 0;
   }
   if (command === "check-pr") {
-    const result = await checkPr(d, repo, number, { write });
+    const result = await checkPr(deps, repo, number, { write });
     console.log(result.report);
     console.error(`\nstatus: ${result.state} · ${result.description}`);
     return result.state === "success" ? 0 : 1;

@@ -1,32 +1,23 @@
 import { randomUUID } from "node:crypto";
 import { type BoxMemory, MEMORY_FILES } from "../box.js";
-import type { Config, RepoConfig } from "../config.js";
-import type { GitHub } from "../github.js";
-import type { Jev } from "../jev.js";
-import type { Ollama } from "../ollama.js";
-import { type IssueMemory, namespaceFor } from "../pinecone.js";
+import type { Deps } from "../clients.js";
+import type { RepoConfig } from "../config.js";
+import { ownerRepo } from "../github.js";
 import { appendRun, type RunRecord, sha256, type Verdict } from "../runlog.js";
-import type { Workers } from "../workers.js";
 import { renderReport } from "./report.js";
 import { REPRO_FILE, type ReproOutcome, reproduce } from "./reproduce.js";
 import { issueText, screen } from "./screen.js";
 import { earlyVerdict, finalVerdict, LABELS } from "./verdict.js";
 import { type Verification, verify } from "./verify.js";
 
-export interface Deps {
-  config: Config;
-  github: GitHub;
-  jev: Jev;
-  ollama: Ollama;
-  issues: IssueMemory;
-  box: BoxMemory;
-  workers: Workers;
-}
-
 export interface TriageResult {
   verdict: Verdict;
   report: string;
   record: RunRecord;
+}
+
+export function namespaceFor(repo: string): string {
+  return repo.toLowerCase().replace(/[^a-z0-9-]/g, "-");
 }
 
 async function loadNotes(box: BoxMemory, folderId: string): Promise<string> {
@@ -53,12 +44,9 @@ export async function prepareWorker(
       ? `git fetch -q --depth 1 origin ${fetchRef} && git checkout -q FETCH_HEAD`
       : undefined,
     repo.prepare,
-  ].filter(Boolean);
+  ].filter((cmd): cmd is string => Boolean(cmd));
   for (const cmd of steps) {
-    const r = await deps.workers.run(repo.worker, cmd as string, {
-      cwd: repo.dir,
-      timeoutMs: 600_000,
-    });
+    const r = await deps.workers.run(repo.worker, cmd, { cwd: repo.dir, timeoutMs: 600_000 });
     if (r.exitCode !== 0) throw new Error(`preparing ${repo.repo} failed: ${r.stderr.slice(-500)}`);
   }
   return restoreMs;
@@ -71,13 +59,14 @@ export async function triageIssue(
   opts: { mode: "demo" | "shadow"; write: boolean },
 ): Promise<TriageResult> {
   const started = Date.now();
-  const { config, github, jev, ollama, issues, box, workers } = deps;
-  const issue = await github.issue(repo.repo, number);
+  const { config, github, jev, model, box, workers } = deps;
+  const target = { ...ownerRepo(repo.repo), issue_number: number };
+  const { data: issue } = await github.rest.issues.get(target);
   if (issue.pull_request) throw new Error(`#${number} is a pull request; use check-pr`);
 
-  const namespace = namespaceFor(repo.repo);
+  const index = deps.issueIndex(namespaceFor(repo.repo));
   const folderId = await box.folderFor(repo.repo);
-  const screening = await screen(jev, issues, namespace, issue);
+  const screening = await screen(jev, index, issue);
   let verdict = earlyVerdict(screening);
 
   let repro: ReproOutcome | undefined;
@@ -87,14 +76,13 @@ export async function triageIssue(
 
   if (!verdict) {
     restoreMs = await prepareWorker(deps, repo);
-    repro = await reproduce(ollama, jev, workers, {
+    repro = await reproduce(model, jev, workers, {
       repo: repo.repo,
       worker: repo.worker,
       dir: repo.dir,
       issueTitle: issue.title,
       issueBody: issue.body ?? "",
       memory: await loadNotes(box, folderId),
-      model: config.models.reproduce,
       maxSteps: config.limits.stepsPerJob,
       commandTimeoutMs: config.limits.commandTimeoutMs,
     });
@@ -108,8 +96,9 @@ export async function triageIssue(
       );
     }
     verdict = finalVerdict(repro, verification);
-    if (verdict === "confirmed")
+    if (verdict === "confirmed") {
       script = await workers.readFile(repo.worker, `${repo.dir}/${REPRO_FILE}`);
+    }
   }
 
   const wallMs = Date.now() - started;
@@ -125,9 +114,9 @@ export async function triageIssue(
   });
 
   if (opts.write && repo.write) {
-    await github.comment(repo.repo, number, report);
+    await github.rest.issues.createComment({ ...target, body: report });
     const label = LABELS[verdict];
-    if (label) await github.addLabels(repo.repo, number, [label]);
+    if (label) await github.rest.issues.addLabels({ ...target, labels: [label] });
   }
   if (opts.mode === "demo") {
     if (script) await box.write(folderId, `repro-${number}.sh`, script);
@@ -137,9 +126,16 @@ export async function triageIssue(
       `- ${new Date().toISOString()} #${number} → **${verdict}**`,
     );
   }
-  await issues.upsert(namespace, [
-    { _id: `issue-${number}`, text: issueText(issue).slice(0, 8_000), title: issue.title, verdict },
-  ]);
+  await index.upsertRecords({
+    records: [
+      {
+        _id: `issue-${number}`,
+        text: issueText(issue).slice(0, 8_000),
+        title: issue.title,
+        verdict,
+      },
+    ],
+  });
 
   const record: RunRecord = {
     runId: randomUUID(),

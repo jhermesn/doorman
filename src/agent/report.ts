@@ -1,4 +1,3 @@
-import { redact } from "../redact.js";
 import type { Verdict } from "../runlog.js";
 import type { Verification } from "./verify.js";
 
@@ -24,12 +23,12 @@ const HEADLINE: Record<Verdict, string> = {
   error: "⚠️ Doorman hit an internal error",
 };
 
-function fence(lang: string, body: string): string {
-  const safe = redact(body).replace(/```/g, "ˋˋˋ").trim() || "(empty)";
+export function fence(lang: string, body: string): string {
+  const safe = body.replace(/```/g, "ˋˋˋ").trim() || "(empty)";
   return `\`\`\`${lang}\n${safe}\n\`\`\``;
 }
 
-function details(title: string, body: string): string {
+export function details(title: string, body: string): string {
   return `<details>\n<summary>${title}</summary>\n\n${body}\n\n</details>`;
 }
 
@@ -49,9 +48,9 @@ export function renderReport(r: ReportInput): string {
   } else if (r.verdict === "duplicate" && r.duplicateOf) {
     lines.push(`> This reads like #${r.duplicateOf}. A maintainer can confirm and close.`);
   } else if (r.verdict === "needs-info" && r.missingInfo) {
-    lines.push(`> **What would help:** ${redact(r.missingInfo)}`);
+    lines.push(`> **What would help:** ${r.missingInfo}`);
   }
-  lines.push("", redact(r.summary).trim(), "");
+  lines.push("", r.summary.trim(), "");
 
   const rows: [string, string][] = [];
   if (r.verification) rows.push(["Runs", runIcons(r.verification)]);

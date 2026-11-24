@@ -1,12 +1,15 @@
+import type { Deps } from "../clients.js";
 import type { RepoConfig } from "../config.js";
-import { redact } from "../redact.js";
+import { ownerRepo } from "../github.js";
+import { details, fence } from "./report.js";
 import { REPRO_FILE } from "./reproduce.js";
-import { type Deps, prepareWorker } from "./triage.js";
+import { prepareWorker } from "./triage.js";
 import { type Verification, verify } from "./verify.js";
 
+/** GitHub's documented closing keywords: https://docs.github.com/issues/tracking-your-work-with-issues/linking-a-pull-request-to-an-issue */
 const CLAIM = /\b(?:fix(?:e[sd])?|close[sd]?|resolve[sd]?)\s+#(\d+)/i;
 
-export function claimedIssue(title: string, body: string | null): number | undefined {
+export function claimedIssue(title: string, body: string | null | undefined): number | undefined {
   const match = `${title}\n${body ?? ""}`.match(CLAIM);
   return match?.[1] ? Number(match[1]) : undefined;
 }
@@ -50,13 +53,20 @@ function row(label: string, v: Verification): string {
   return `| **${label}** | ${icons} | ${v.outcome} |`;
 }
 
+const HEADLINE = {
+  success: "✅ The fix holds",
+  failure: "❌ The fix doesn't hold",
+  error: "⚠️ Couldn't check this fix",
+} as const;
+
 export async function checkPr(
   deps: Deps,
   repo: RepoConfig,
   number: number,
   opts: { write: boolean },
 ): Promise<PrCheck> {
-  const pr = await deps.github.pull(repo.repo, number);
+  const target = ownerRepo(repo.repo);
+  const { data: pr } = await deps.github.rest.pulls.get({ ...target, pull_number: number });
   const issue = claimedIssue(pr.title, pr.body);
   const folderId = await deps.box.folderFor(repo.repo);
   const script = issue ? await deps.box.read(folderId, `repro-${issue}.sh`) : undefined;
@@ -72,7 +82,7 @@ export async function checkPr(
   const head = await runAt(deps, repo, `pull/${number}/head`, script);
   const verdict = judge(base, head);
   const report = [
-    `### 🚪 Doorman · ${verdict.state === "success" ? "✅ The fix holds" : verdict.state === "failure" ? "❌ The fix doesn't hold" : "⚠️ Couldn't check this fix"}`,
+    `### 🚪 Doorman · ${HEADLINE[verdict.state]}`,
     "",
     `> Ran the confirmed reproduction of #${issue} against the base branch and against this PR, ${base.exitCodes.length} times each.`,
     "",
@@ -81,14 +91,20 @@ export async function checkPr(
     row(`base \`${pr.base.ref}\``, base),
     row("this PR", head),
     "",
-    `<details>\n<summary>Reproduction script for #${issue}</summary>\n\n\`\`\`bash\n${redact(script).trim()}\n\`\`\`\n\n</details>`,
+    details(`Reproduction script for #${issue}`, fence("bash", script)),
     "",
     "<sub>A 🔴 run means the bug is present. Doorman checks claims; it doesn't review style or design.</sub>",
   ].join("\n");
 
   if (opts.write && repo.write) {
-    await deps.github.setStatus(repo.repo, pr.head.sha, verdict.state, verdict.description);
-    await deps.github.comment(repo.repo, number, report);
+    await deps.github.rest.repos.createCommitStatus({
+      ...target,
+      sha: pr.head.sha,
+      state: verdict.state,
+      context: "doorman/repro",
+      description: verdict.description.slice(0, 140),
+    });
+    await deps.github.rest.issues.createComment({ ...target, issue_number: number, body: report });
   }
   return { issue, base, head, ...verdict, report };
 }

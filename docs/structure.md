@@ -4,16 +4,15 @@
 src/
   cli.ts            entry point: `doorman triage` and `doorman check-pr`
   config.ts         config schema and validation (no secrets in config)
-  http.ts           fetch with timeouts, retries with backoff and jitter
-  github.ts jev.ts ollama.ts pinecone.ts box.ts
-                    one client per connector, all through the Sprites gateway
+  clients.ts        builds every SDK client against its Sprites connector URL
+  github.ts         Octokit with a write guard for repos not marked `write`
+  box.ts            Box SDK memory; maintainer notes are read-only
   workers.ts        the only way to touch a worker Sprite (prefix-checked)
-  redact.ts         masks credential-shaped strings before logging or posting
   runlog.ts         one JSON line per job
   agent/
     screen.ts       Jev questions + Pinecone duplicate lookup
-    gate.ts         rules, then Jev, before every command
-    reproduce.ts    the model's tool loop (run, write_file, finish)
+    gate.ts         Jev safety check before every command
+    reproduce.ts    AI SDK tool loop (run, write_file, finish)
     verify.ts       runs the reproduction N times and classifies the result
     verdict.ts      early and final verdicts, labels
     report.ts       the GitHub comment
@@ -25,7 +24,7 @@ test/               Vitest, one file per behaviour
 
 ## How an issue job flows
 
-1. `cli.ts` builds the clients from the config and calls `triageIssue`.
+1. `cli.ts` loads the config, `createDeps` builds the clients, and it calls `triageIssue`.
 2. `screen` may end the job early (`blocked`, `duplicate`, `not-a-bug`, `needs-info`).
 3. `prepareWorker` restores the golden checkpoint and runs the repo's trusted `prepare` command.
 4. `reproduce` loops: model → tool call → `gate` → `workers.run` → output back to the model.

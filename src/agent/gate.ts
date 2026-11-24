@@ -1,67 +1,34 @@
-import { choice, type Jev } from "../jev.js";
+import type { TypeSafeClient } from "@typesafe-ai/sdk";
 
-/**
- * Patterns that are never needed to reproduce a bug. Checked before Jev, so the
- * obvious cases don't depend on a model at all.
- */
-const DENY: [RegExp, string][] = [
-  [/\b(curl|wget)\b[^|;&]*\|\s*(ba|z)?sh\b/i, "pipes a download into a shell"],
-  [/\bbase64\b[^|]*-d[^|]*\|\s*(ba|z)?sh\b/i, "decodes and executes a payload"],
-  [/\/dev\/(tcp|udp)\//i, "opens a raw network socket"],
-  [/\b(nc|ncat|netcat|socat)\b/i, "uses a raw network tool"],
-  [/\brm\s+-[a-z]*r[a-z]*f?\s+(\/|~|\$HOME)(\s|$)/i, "deletes the filesystem root or home"],
-  [/\b(crontab|systemctl|launchctl)\b|\/etc\/cron/i, "installs persistence"],
-  [
-    /(~|\$HOME)\/\.(ssh|aws|npmrc|config\/doorman)|\/\.sprite\//i,
-    "reads credentials or platform internals",
-  ],
-  [/\b169\.254\.169\.254\b|metadata\.google/i, "queries a cloud metadata endpoint"],
-  [/\b(printenv|env)\s*(>|\||$)|\/proc\/\d*\/?environ/i, "dumps the environment"],
-  [/:\(\)\s*\{\s*:\|:&\s*\};:/, "fork bomb"],
-  [/\b(xmrig|minerd|cpuminer)\b/i, "crypto miner"],
-  [/\bsudo\b/, "needs root"],
-];
+export const ALLOW_THRESHOLD = 0.6;
 
 export interface GateDecision {
   decision: "allow" | "block";
   allowP: number;
-  reason: string;
-  layer: "rules" | "jev";
 }
 
-export function ruleCheck(command: string): string | undefined {
-  return DENY.find(([pattern]) => pattern.test(command))?.[1];
-}
-
-export async function gate(jev: Jev, issueSummary: string, command: string): Promise<GateDecision> {
-  const rule = ruleCheck(command);
-  if (rule) return { decision: "block", allowP: 0, reason: rule, layer: "rules" };
-
-  const result = await jev.ask(
-    { bug_report_summary: issueSummary.slice(0, 4_000), proposed_command: command },
-    {
+/**
+ * A typed safety check on each command. Jev sees only the command, never the bug report,
+ * so text in the report can't argue a command through. It is not the security boundary:
+ * the worker's network, privilege and memory policies are what hold when Jev is wrong.
+ */
+export async function gate(jev: TypeSafeClient, command: string): Promise<GateDecision> {
+  const { answers } = await jev.systemOne({
+    state: { proposed_command: command },
+    questions: {
       gate: {
         type: "choice",
         instructions:
-          "An automated agent is reproducing this bug report inside a disposable sandbox. Should it run the proposed command?",
+          "An automated agent is reproducing a bug report inside a disposable sandbox that has the project checked out and can reach package registries only. Is the proposed command safe to run there?",
         criteria: {
           allow:
-            "Installs the project's dependencies, builds or tests it, inspects files, or runs a minimal script that exercises the reported behaviour",
+            "Reads, lists or edits project files, installs packages, builds, tests, or runs scripts and one-liners",
           block:
-            "Downloads and runs remote code, contacts unrelated hosts, reads or sends credentials or environment data, persists, mines, or is unrelated to the bug",
+            "Fetches and runs remote code, opens network connections or listeners outside package installs, reads or sends credentials or environment variables, installs persistence, escalates privileges, or tries to damage or exhaust the machine",
         },
       },
     },
-  );
-  const { choice: decision, confidence } = choice(result.answers.gate);
-  const allowP = decision === "allow" ? confidence : 1 - confidence;
-  return {
-    decision: decision === "allow" && allowP >= 0.6 ? "allow" : "block",
-    allowP,
-    reason:
-      decision === "allow"
-        ? "consistent with reproducing the report"
-        : "judged unrelated or unsafe",
-    layer: "jev",
-  };
+  });
+  const allowP = answers.gate.probabilities.allow;
+  return { decision: allowP >= ALLOW_THRESHOLD ? "allow" : "block", allowP };
 }
