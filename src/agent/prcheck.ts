@@ -1,10 +1,13 @@
 import type { Deps } from "../clients.js";
 import type { RepoConfig } from "../config.js";
 import { ownerRepo } from "../github.js";
-import { details, fence } from "./report.js";
+import { fill, text } from "../text.js";
+import { details, fence, runIcons } from "./report.js";
 import { REPRO_FILE } from "./reproduce.js";
 import { prepareWorker } from "./triage.js";
 import { type Verification, verify } from "./verify.js";
+
+const t = text.prCheck;
 
 /** GitHub's documented closing keywords: https://docs.github.com/issues/tracking-your-work-with-issues/linking-a-pull-request-to-an-issue */
 const CLAIM = /\b(?:fix(?:e[sd])?|close[sd]?|resolve[sd]?)\s+#(\d+)/i;
@@ -28,12 +31,12 @@ export function judge(
   head: Verification,
 ): Pick<PrCheck, "state" | "description"> {
   if (base.outcome !== "fails") {
-    return { state: "error", description: "The stored repro no longer fails on the base branch" };
+    return { state: "error", description: t.status.baseNoLongerFails };
   }
   if (head.outcome === "passes") {
-    return { state: "success", description: "Repro fails on base and passes with this PR" };
+    return { state: "success", description: t.status.holds };
   }
-  return { state: "failure", description: "The PR claims a fix, but the repro still fails" };
+  return { state: "failure", description: t.status.stillFails };
 }
 
 async function runAt(
@@ -49,15 +52,8 @@ async function runAt(
 }
 
 function row(label: string, v: Verification): string {
-  const icons = v.exitCodes.map((c) => (c === 0 ? "🟢" : "🔴")).join(" ");
-  return `| **${label}** | ${icons} | ${v.outcome} |`;
+  return `| **${label}** | ${runIcons(v)} | ${v.outcome} |`;
 }
-
-const HEADLINE = {
-  success: "✅ The fix holds",
-  failure: "❌ The fix doesn't hold",
-  error: "⚠️ Couldn't check this fix",
-} as const;
 
 export async function checkPr(
   deps: Deps,
@@ -72,9 +68,7 @@ export async function checkPr(
   const script = issue ? await deps.box.read(folderId, `repro-${issue}.sh`) : undefined;
 
   if (!issue || !script) {
-    const description = issue
-      ? `No confirmed repro stored for #${issue} yet`
-      : "The PR doesn't say which issue it fixes";
+    const description = issue ? fill(t.status.noRepro, { issue }) : t.status.noClaim;
     return { issue, state: "error", description, report: description };
   }
 
@@ -82,18 +76,18 @@ export async function checkPr(
   const head = await runAt(deps, repo, `pull/${number}/head`, script);
   const verdict = judge(base, head);
   const report = [
-    `### 🚪 Doorman · ${HEADLINE[verdict.state]}`,
+    fill(text.report.title, { headline: t.headline[verdict.state] }),
     "",
-    `> Ran the confirmed reproduction of #${issue} against the base branch and against this PR, ${base.exitCodes.length} times each.`,
+    fill(t.intro, { issue, runs: base.exitCodes.length }),
     "",
     "| | Runs | Result |",
     "|:--|:--|:--|",
-    row(`base \`${pr.base.ref}\``, base),
-    row("this PR", head),
+    row(fill(t.base, { ref: pr.base.ref }), base),
+    row(t.head, head),
     "",
-    details(`Reproduction script for #${issue}`, fence("bash", script)),
+    details(fill(t.script, { issue }), fence("bash", script)),
     "",
-    "<sub>A 🔴 run means the bug is present. Doorman checks claims; it doesn't review style or design.</sub>",
+    t.footer,
   ].join("\n");
 
   if (opts.write && repo.write) {
