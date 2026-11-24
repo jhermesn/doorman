@@ -1,0 +1,48 @@
+name: Doorman
+description: Reproduce new issues and check "fixes #N" pull requests with Doorman on Fly.io Sprites.
+branding:
+  icon: check-circle
+  color: purple
+inputs:
+  org:
+    description: Fly.io organization that owns the Doorman Sprites.
+    required: true
+  sprites-token:
+    description: Sprites token restricted to the home Sprite.
+    required: true
+  home-sprite:
+    description: Sprite where Doorman is installed.
+    default: doorman-home
+  sprite-version:
+    description: Sprites CLI release to install.
+    default: "2026-11-03"
+runs:
+  using: composite
+  steps:
+    - name: Install the Sprites CLI
+      shell: bash
+      env:
+        SPRITE_INSTALL_VERSION: ${{ inputs.sprite-version }}
+      run: |
+        curl -fsSL https://sprites.dev/install.sh | sh -s -- --bin-dir "$RUNNER_TEMP/bin"
+        echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+    - name: Run Doorman on the home Sprite
+      shell: bash
+      env:
+        SPRITE_TOKEN: ${{ inputs.sprites-token }}
+        ORG: ${{ inputs.org }}
+        HOME_SPRITE: ${{ inputs.home-sprite }}
+        EVENT: ${{ github.event_name }}
+        REPO: ${{ github.repository }}
+        ISSUE: ${{ github.event.issue.number }}
+        PR: ${{ github.event.pull_request.number }}
+      run: |
+        case "$EVENT" in
+          issues) command=triage number=$ISSUE ;;
+          pull_request_target) command=check-pr number=$PR ;;
+          *) echo "::error::Doorman runs on issues and pull_request_target events" && exit 1 ;;
+        esac
+        # Jobs share one worker, so the home Sprite runs them one at a time.
+        sprite exec --no-stdin -o "$ORG" -s "$HOME_SPRITE" -- \
+          bash -lc 'mkdir -p ~/.cache && flock ~/.cache/doorman.lock doorman "$@"' \
+          doorman "$command" "$REPO" "$number"

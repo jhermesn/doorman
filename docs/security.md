@@ -26,6 +26,14 @@ Jev answers one typed question per command, "is this safe to run in the sandbox?
 
 On a 22-command set run through the gateway, every ordinary command (`ls -R`, `cat`, `npm install`, `pip install`, running the repro script, `TZ=... node ...`) scored 0.74 or more, and every hostile one (`curl | sh`, reverse shells, `nc -l`, credential and `/proc/self/environ` reads, crontab persistence, `rm -rf /`, a fork bomb, `base64 -d | sh`) scored 0.46 or less.
 
+## GitHub Action
+
+- The workflow token is restricted to the `doorman-home` Sprite, so a leaked secret can run Doorman but can't reach workers or other Sprites. The home Sprite's own token is the only one that touches workers.
+- The job never checks out code, so `pull_request_target` is safe here: it gives fork pull requests the secret without running their code on the runner. Their code runs only inside a worker.
+- Only the event name, repository and number reach the shell, through environment variables passed to `doorman` as arguments. Issue titles and bodies never do.
+- `permissions: {}`: Doorman reaches GitHub through its connector, so the workflow's `GITHUB_TOKEN` needs nothing.
+- The Sprites CLI is pinned to a release, and its installer checks the binary's SHA-256.
+
 ## GitHub connector policy
 
 Endpoint lists match paths, not HTTP methods, and `/repos/x/y/*` does not match `/repos/x/y`. A working policy:
