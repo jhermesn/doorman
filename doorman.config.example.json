@@ -1,0 +1,26 @@
+{
+  "connectors": {
+    "github": "<github-connection-id>",
+    "typesafe": "<typesafe-connection-id>",
+    "ollama": "<ollama-connection-id>",
+    "pinecone": "<pinecone-connection-id>",
+    "box": "<box-connection-id>"
+  },
+  "models": { "reproduce": "gpt-oss:120b" },
+  "pinecone": { "index": "doorman-issues" },
+  "box": { "folderId": "<box-folder-id>" },
+  "workerPrefix": "doorman-w-",
+  "spritesTokenFile": "/home/sprite/.config/doorman/sprites-token",
+  "runLog": "/home/sprite/doorman/runs.jsonl",
+  "repos": [
+    {
+      "repo": "<owner>/<repo>",
+      "worker": "doorman-w-<name>",
+      "golden": "<checkpoint-id>",
+      "dir": "/home/sprite/work/<repo>",
+      "write": true,
+      "prepare": "npm ci --prefer-offline --no-audit --no-fund"
+    }
+  ],
+  "limits": { "stepsPerJob": 20, "commandTimeoutMs": 120000, "verifyRuns": 3 }
+}
