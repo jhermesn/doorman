@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { SpritesClient } from "@fly/sprites";
+import { ExecError, type ExecResult, SpritesClient } from "@fly/sprites";
 
 export interface RunResult {
   exitCode: number;
@@ -34,6 +34,28 @@ export function clip(text: string, max = MAX_OUTPUT): string {
   if (text.length <= max) return text;
   const half = Math.floor(max / 2);
   return `${text.slice(0, half)}\n… [${text.length - max} bytes elided] …\n${text.slice(-half)}`;
+}
+
+function fromResult(result: ExecResult, durationMs: number): RunResult {
+  return {
+    exitCode: result.exitCode,
+    stdout: clip(String(result.stdout)),
+    stderr: clip(String(result.stderr)),
+    durationMs,
+    crashed: false,
+  };
+}
+
+/** execFile rejects on any non-zero exit; only an error without a result means the worker dropped. */
+export function fromError(error: unknown, durationMs: number): RunResult {
+  if (error instanceof ExecError) return fromResult(error.result, durationMs);
+  return {
+    exitCode: -1,
+    stdout: "",
+    stderr: error instanceof Error ? error.message : String(error),
+    durationMs,
+    crashed: true,
+  };
 }
 
 export class SpritesWorkers implements Workers {
@@ -84,22 +106,10 @@ export class SpritesWorkers implements Workers {
         timeout: opts.timeoutMs,
         maxBuffer: 4 * MAX_OUTPUT,
       });
-      return {
-        exitCode: result.exitCode,
-        stdout: clip(String(result.stdout)),
-        stderr: clip(String(result.stderr)),
-        durationMs: Date.now() - started,
-        crashed: false,
-      };
+      return fromResult(result, Date.now() - started);
     } catch (error) {
       if (error instanceof WorkerNameError) throw error;
-      return {
-        exitCode: -1,
-        stdout: "",
-        stderr: error instanceof Error ? error.message : String(error),
-        durationMs: Date.now() - started,
-        crashed: true,
-      };
+      return fromError(error, Date.now() - started);
     }
   }
 
