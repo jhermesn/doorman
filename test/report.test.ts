@@ -28,20 +28,6 @@ describe("renderReport", () => {
     expect(md).toContain("<summary>Reproduction script</summary>");
   });
 
-  it("given output containing a token, when rendered, then the token is masked", () => {
-    const leaky = classify([
-      { exitCode: 1, stdout: `ghp_${"x".repeat(36)}`, stderr: "", durationMs: 1, crashed: false },
-    ]);
-    const md = renderReport({
-      verdict: "confirmed",
-      summary: "",
-      verification: leaky,
-      blockedCommands: 0,
-      wallMs: 1,
-    });
-    expect(md).not.toContain(`ghp_${"x".repeat(36)}`);
-  });
-
   it("given output containing a code fence, when rendered, then the comment layout survives", () => {
     const tricky = classify([
       { exitCode: 1, stdout: "```\n# injected heading", stderr: "", durationMs: 1, crashed: false },

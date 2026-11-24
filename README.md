@@ -27,7 +27,7 @@ Everything strangers send is treated as untrusted code. It runs on a computer th
 | :-: | :------------------------------ | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 🔁  | **Reproduces issues**           | An open model on Ollama Cloud drives a shell in the worker Sprite until it has a script that fails because of the bug. The script must fail 3 out of 3 runs to count. |
 | ✅  | **Checks fix claims**           | For `Fixes #N` PRs, the stored reproduction must fail on the base branch and pass on the PR. The result is a `doorman/repro` commit status.                           |
-| 🛑  | **Gates every command**         | Deterministic rules, then a typed decision from TypeSafe's Jev (about 0.25 s per call), approve each command before it runs.                                          |
+| 🛑  | **Gates every command**         | A typed safety decision from TypeSafe's Jev (about 0.25 s per call) approves each command before it runs. Jev sees the command, never the report.                     |
 | 🧱  | **Contains what slips through** | Workers have deny-by-default egress, no sudo, a memory cap and no connector access. Policies are set from outside the Sprite.                                         |
 | 🗂️  | **Spots duplicates**            | Every report goes into a Pinecone index; close matches are confirmed by Jev before Doorman labels a duplicate.                                                        |
 | 📝  | **Learns from you**             | Its memory is Markdown in a Box folder (`env.md`, `quirks.md`, `policy.md`) that you can read and edit like a colleague's notes.                                      |
@@ -66,8 +66,9 @@ The agent and the code it runs live on different computers. Doorman's process si
 | Layer                     | What it stops                                                         | Where it lives                                      |
 | :------------------------ | :-------------------------------------------------------------------- | :-------------------------------------------------- |
 | Prompt boundary           | Report text is wrapped as data and the model is told not to follow it | `src/agent/reproduce.ts`                            |
+| Read-only notes           | A report rewriting the maintainer's notes in Box                      | `src/box.ts` refuses to write them                  |
 | Injection screen          | Reports aimed at automated agents are not run at all                  | Jev, before any command                             |
-| Command gate              | `curl \| sh`, raw sockets, credential reads, persistence, miners      | Rules, then Jev                                     |
+| Command gate              | `curl \| sh`, raw sockets, credential reads, persistence, miners      | Jev, on the command alone                           |
 | Worker egress             | Any host except package registries and GitHub                         | Sprite network policy                               |
 | Worker privileges         | `sudo`, privilege escalation                                          | Sprite privileges policy                            |
 | Worker resources          | Memory exhaustion (the worker reboots, the job ends as `oom`)         | Sprite resources policy                             |

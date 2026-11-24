@@ -19,7 +19,7 @@
       "golden": "<checkpoint-id>",
       "dir": "/home/sprite/work/<repo>",
       "write": true,
-      "prepare": "npm ci --prefer-offline --no-audit --no-fund"
+      "prepare": "npm ci --ignore-scripts --prefer-offline --no-audit --no-fund"
     }
   ],
   "limits": { "stepsPerJob": 20, "commandTimeoutMs": 120000, "verifyRuns": 3 }
