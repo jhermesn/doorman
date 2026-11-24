@@ -99,7 +99,7 @@ You need a Fly.io account with Sprites, the `sprite` CLI, Node 24, and accounts 
    sprite exec -s doorman-home -- doorman check-pr owner/repo 57
    ```
 
-7. **Automate.** In the Fly.io dashboard, create a Sprites token restricted to the single Sprite `doorman-home`, store it as the `DOORMAN_SPRITES_TOKEN` secret, and add this workflow:
+7. **Automate.** In the Fly.io dashboard, create a Sprites token restricted to the single Sprite `doorman-home` (or, where your organization can't scope tokens to one Sprite, to the name prefix `doorman-home`), store it as the `DOORMAN_SPRITES_TOKEN` secret, and add this workflow:
 
    ```yaml
    name: Doorman
