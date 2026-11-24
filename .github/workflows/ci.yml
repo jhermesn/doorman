@@ -18,6 +18,5 @@ jobs:
         with:
           node-version: 24
           cache: npm
-      - run: npm ci
+      - run: npm ci # also builds, through the prepare script
       - run: npm run check
-      - run: npm run build
