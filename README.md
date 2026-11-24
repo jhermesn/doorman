@@ -119,4 +119,4 @@ Issues and pull requests are welcome. [CONTRIBUTING.md](CONTRIBUTING.md) covers 
 
 ## License
 
-[Apache-2.0](LICENSE). Doorman is an independent project and is not affiliated with Fly.io, TypeSafe AI, Ollama, Pinecone or Box.
+[Apache-2.0](LICENSE). The logo is built on Lucide's `door-open` icon ([ISC](assets/LICENSE-lucide.txt)). Doorman is an independent project and is not affiliated with Fly.io, TypeSafe AI, Ollama, Pinecone or Box.
