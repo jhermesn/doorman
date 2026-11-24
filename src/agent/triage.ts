@@ -4,6 +4,7 @@ import type { Deps } from "../clients.js";
 import type { RepoConfig } from "../config.js";
 import { ownerRepo } from "../github.js";
 import { appendRun, type RunRecord, sha256, type Verdict } from "../runlog.js";
+import { text } from "../text.js";
 import { renderReport } from "./report.js";
 import { REPRO_FILE, type ReproOutcome, reproduce } from "./reproduce.js";
 import { issueText, screen } from "./screen.js";
@@ -165,16 +166,6 @@ export async function triageIssue(
 }
 
 function summaryFor(verdict: Verdict): string {
-  switch (verdict) {
-    case "blocked":
-      return "The report contains instructions aimed at automated tools, so Doorman did not run anything. A maintainer should read it first.";
-    case "duplicate":
-      return "A very similar report already exists.";
-    case "not-a-bug":
-      return "This reads as a question, feature request or docs issue rather than a defect, so there is nothing to reproduce.";
-    case "needs-info":
-      return "The report doesn't include code, commands or steps that Doorman could run.";
-    default:
-      return "";
-  }
+  const summaries: Partial<Record<Verdict, string>> = text.report.summary;
+  return summaries[verdict] ?? "";
 }

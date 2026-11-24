@@ -4,6 +4,8 @@
 src/
   cli.ts            entry point: `doorman triage` and `doorman check-pr`
   config.ts         config schema and validation (no secrets in config)
+  text.json         every prompt, Jev question and comment string, with {placeholders}
+  text.ts           loads text.json; fill() replaces placeholders in one pass
   clients.ts        builds every SDK client against its Sprites connector URL
   github.ts         Octokit with a write guard for repos not marked `write`
   box.ts            Box SDK memory; maintainer notes are read-only

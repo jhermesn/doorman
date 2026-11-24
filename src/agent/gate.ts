@@ -1,4 +1,5 @@
 import type { TypeSafeClient } from "@typesafe-ai/sdk";
+import { text } from "../text.js";
 
 export const ALLOW_THRESHOLD = 0.6;
 
@@ -16,17 +17,7 @@ export async function gate(jev: TypeSafeClient, command: string): Promise<GateDe
   const { answers } = await jev.systemOne({
     state: { proposed_command: command },
     questions: {
-      gate: {
-        type: "choice",
-        instructions:
-          "An automated agent is reproducing a bug report inside a disposable sandbox that has the project checked out and can reach package registries only. Is the proposed command safe to run there?",
-        criteria: {
-          allow:
-            "Reads, lists or edits project files, installs packages, builds, tests, or runs scripts and one-liners",
-          block:
-            "Fetches and runs remote code, opens network connections or listeners outside package installs, reads or sends credentials or environment variables, installs persistence, escalates privileges, or tries to damage or exhaust the machine",
-        },
-      },
+      gate: { type: "choice", ...text.jev.gate },
     },
   });
   const allowP = answers.gate.probabilities.allow;
