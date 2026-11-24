@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { renderReport } from "../src/agent/report.js";
+import { renderReport, scriptFromReport } from "../src/agent/report.js";
 import { classify } from "../src/agent/verify.js";
 
 const failing = classify(
@@ -20,6 +20,7 @@ describe("renderReport", () => {
       verification: failing,
       script: "node repro.mjs",
       blockedCommands: 0,
+      gated: true,
       wallMs: 42_000,
     });
     expect(md).toContain("✅ Reproduced");
@@ -37,6 +38,7 @@ describe("renderReport", () => {
       summary: "",
       verification: tricky,
       blockedCommands: 0,
+      gated: true,
       wallMs: 1,
     });
     expect(md.match(/```/g)).toHaveLength(2);
@@ -47,8 +49,48 @@ describe("renderReport", () => {
       verdict: "blocked",
       summary: "Nothing ran.",
       blockedCommands: 0,
+      gated: true,
       wallMs: 1,
     });
     expect(md).toContain("🛑");
+  });
+});
+
+describe("scriptFromReport", () => {
+  it("given a confirmed report, when the script is read back, then it matches what was rendered", () => {
+    const script = "#!/usr/bin/env bash\nnode check.mjs";
+    const md = renderReport({
+      verdict: "confirmed",
+      summary: "",
+      script,
+      blockedCommands: 0,
+      gated: true,
+      wallMs: 1,
+    });
+    expect(scriptFromReport(md)).toBe(script);
+  });
+
+  it("given a report without a script, when it is read, then there is nothing to check", () => {
+    const md = renderReport({
+      verdict: "needs-info",
+      summary: "",
+      blockedCommands: 0,
+      gated: true,
+      wallMs: 1,
+    });
+    expect(scriptFromReport(md)).toBeUndefined();
+  });
+});
+
+describe("renderReport without Jev", () => {
+  it("given no gate, when rendered, then the report says commands ran ungated", () => {
+    const md = renderReport({
+      verdict: "cannot-reproduce",
+      summary: "",
+      blockedCommands: 0,
+      gated: false,
+      wallMs: 1,
+    });
+    expect(md).toContain("no Jev connector");
   });
 });

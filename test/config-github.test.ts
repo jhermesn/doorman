@@ -5,10 +5,8 @@ import { ConfigError, parseConfig } from "../src/config.js";
 import { createGitHub, upsertComment, WriteNotAllowedError } from "../src/github.js";
 
 const valid = {
-  connectors: { github: "g", typesafe: "t", ollama: "o", pinecone: "p", box: "b" },
+  connectors: { github: "g", ollama: "o" },
   models: { reproduce: "gpt-oss:120b" },
-  pinecone: { index: "doorman-issues" },
-  box: { folderId: "1" },
   workerPrefix: "doorman-w-",
   spritesTokenFile: "/tmp/token",
   repos: [
@@ -35,9 +33,19 @@ describe("parseConfig", () => {
     expect(() => parseConfig(bad)).toThrow(ConfigError);
   });
 
-  it("given a missing connector, when parsed, then the error names it", () => {
-    const bad = { ...valid, connectors: { ...valid.connectors, typesafe: "" } };
-    expect(() => parseConfig(bad)).toThrow(/connectors\.typesafe/);
+  it("given a missing required connector, when parsed, then the error names it", () => {
+    const bad = { ...valid, connectors: { github: "g" } };
+    expect(() => parseConfig(bad)).toThrow(/connectors\.ollama/);
+  });
+
+  it("given only GitHub and Ollama, when parsed, then the optional connectors stay off", () => {
+    const { typesafe, pinecone, box } = parseConfig(valid).connectors;
+    expect([typesafe, pinecone, box]).toEqual([undefined, undefined, undefined]);
+  });
+
+  it("given Pinecone without an index name, when parsed, then the default index is used", () => {
+    const withPinecone = { ...valid, connectors: { ...valid.connectors, pinecone: { id: "p" } } };
+    expect(parseConfig(withPinecone).connectors.pinecone?.index).toBe("doorman-issues");
   });
 });
 

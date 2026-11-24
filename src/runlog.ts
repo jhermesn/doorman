@@ -12,7 +12,8 @@ export type Verdict =
 
 export interface Step {
   cmd: string;
-  gate: { allowP: number; decision: "allow" | "block" };
+  /** Absent when no Jev connector is configured. */
+  gate?: { allowP: number; decision: "allow" | "block" };
   exitCode?: number;
   ms?: number;
   crashed?: boolean;

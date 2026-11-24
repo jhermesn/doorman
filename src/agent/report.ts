@@ -10,6 +10,8 @@ export interface ReportInput {
   verification?: Verification;
   script?: string;
   blockedCommands: number;
+  /** False when no Jev connector is configured, so commands ran without the gate. */
+  gated: boolean;
   wallMs: number;
 }
 
@@ -51,7 +53,9 @@ export function renderReport(r: ReportInput): string {
     ]);
   }
   rows.push([t.sandbox, t.sandboxValue]);
-  if (r.blockedCommands > 0) rows.push([t.gate, fill(t.gateValue, { count: r.blockedCommands })]);
+  if (!r.gated) rows.push([t.gate, t.gateOff]);
+  else if (r.blockedCommands > 0)
+    rows.push([t.gate, fill(t.gateValue, { count: r.blockedCommands })]);
 
   const lines = [fill(t.title, { headline: t.headline[r.verdict] }), ""];
   const first = lead(r);
@@ -64,4 +68,12 @@ export function renderReport(r: ReportInput): string {
   }
   lines.push(t.footer);
   return lines.join("\n");
+}
+
+/** Reads the script back out of a rendered report, so PR checks work without Box. */
+export function scriptFromReport(body: string): string | undefined {
+  const summary = body.indexOf(`<summary>${t.script}</summary>`);
+  const open = summary < 0 ? -1 : body.indexOf("```bash\n", summary);
+  const close = open < 0 ? -1 : body.indexOf("\n```", open + 8);
+  return close < 0 ? undefined : body.slice(open + 8, close);
 }

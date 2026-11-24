@@ -1,14 +1,12 @@
 {
   "connectors": {
     "github": "<github-connection-id>",
-    "typesafe": "<typesafe-connection-id>",
     "ollama": "<ollama-connection-id>",
-    "pinecone": "<pinecone-connection-id>",
-    "box": "<box-connection-id>"
+    "typesafe": "<typesafe-connection-id>",
+    "pinecone": { "id": "<pinecone-connection-id>", "index": "doorman-issues" },
+    "box": { "id": "<box-connection-id>", "folderId": "<box-folder-id>" }
   },
   "models": { "reproduce": "gpt-oss:120b" },
-  "pinecone": { "index": "doorman-issues" },
-  "box": { "folderId": "<box-folder-id>" },
   "workerPrefix": "doorman-w-",
   "spritesTokenFile": "/home/sprite/.config/doorman/sprites-token",
   "repos": [

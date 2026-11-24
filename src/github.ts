@@ -41,18 +41,21 @@ export function createGitHub(
   return github;
 }
 
+/** Doorman's earlier report on an issue, written by someone with write access. */
+export async function findDoormanComment(github: Octokit, issue: IssueRef) {
+  const comments = await github.paginate(github.rest.issues.listComments, {
+    ...issue,
+    per_page: 100,
+  });
+  return comments.find((c) => c.body?.startsWith(MARKER) && TRUSTED.has(c.author_association));
+}
+
 /**
  * Idempotent comment: a rerun of the same job updates the report. Only comments by people with
  * write access count, so a stranger can't plant the marker and have Doorman overwrite their text.
  */
 export async function upsertComment(github: Octokit, issue: IssueRef, body: string): Promise<void> {
-  const comments = await github.paginate(github.rest.issues.listComments, {
-    ...issue,
-    per_page: 100,
-  });
-  const previous = comments.find(
-    (c) => c.body?.startsWith(MARKER) && TRUSTED.has(c.author_association),
-  );
+  const previous = await findDoormanComment(github, issue);
   const marked = `${MARKER}\n${body}`;
   if (previous) {
     await github.rest.issues.updateComment({
