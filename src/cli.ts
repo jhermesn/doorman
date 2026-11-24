@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+import { homedir } from "node:os";
+import { join } from "node:path";
 import { parseArgs } from "node:util";
 import { checkPr } from "./agent/prcheck.js";
 import { triageIssue } from "./agent/triage.js";
@@ -10,7 +12,7 @@ const USAGE = `Usage:
   doorman check-pr <owner/repo> <pr> [--dry-run] [--config <file>]
 
   --dry-run   print the report instead of posting it
-  --config    defaults to ./doorman.config.json`;
+  --config    defaults to ~/.config/doorman/config.json`;
 
 async function main(argv: string[]): Promise<number> {
   const { values, positionals } = parseArgs({
@@ -18,7 +20,7 @@ async function main(argv: string[]): Promise<number> {
     allowPositionals: true,
     options: {
       "dry-run": { type: "boolean", default: false },
-      config: { type: "string", default: "doorman.config.json" },
+      config: { type: "string", default: join(homedir(), ".config/doorman/config.json") },
       help: { type: "boolean", short: "h", default: false },
     },
   });

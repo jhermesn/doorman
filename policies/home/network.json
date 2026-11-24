@@ -1,0 +1,9 @@
+{
+  "rules": [
+    { "domain": "api.sprites.dev", "action": "allow" },
+    { "domain": "registry.npmjs.org", "action": "allow" },
+    { "domain": "github.com", "action": "allow" },
+    { "domain": "codeload.github.com", "action": "allow" },
+    { "domain": "*", "action": "deny" }
+  ]
+}

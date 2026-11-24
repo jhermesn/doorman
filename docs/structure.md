@@ -21,6 +21,7 @@ src/
     triage.ts       issue flow: screen → reset → reproduce → verify → report → remember
     prcheck.ts      PR flow: base vs head with the stored reproduction
 scripts/            bootstrap-worker.sh, bootstrap-home.sh (run from a maintainer machine)
+policies/           Sprite network, privileges and memory policies the scripts apply
 test/               Vitest, one file per behaviour
 ```
 

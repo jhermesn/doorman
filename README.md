@@ -87,18 +87,23 @@ You need a Fly.io account with Sprites, the `sprite` CLI, Node 24, and accounts 
 3. **Worker.** Bootstrap a worker for each repository:
 
    ```bash
-   scripts/bootstrap-worker.sh <org> doorman-w-<name> <owner/repo> "npm ci"
+   scripts/bootstrap-worker.sh <org> doorman-w-<name> <owner/repo> "npm ci --ignore-scripts"
    ```
 
-   It creates the Sprite, applies the egress, privileges and memory policies, clones the repository, installs dependencies and takes the golden checkpoint.
-4. **Home.** Create a Sprites token restricted to the `doorman-w-` prefix in the dashboard, then deploy:
+   It creates the Sprite, applies the policies in [`policies/worker/`](policies/worker), clones the repository, runs the prepare command and takes the golden checkpoint.
+4. **Home.** Create a Sprites token restricted to the `doorman-w-` prefix in the dashboard, then run:
 
    ```bash
    scripts/bootstrap-home.sh <org> doorman-home
    ```
 
-   The script asks for the token on stdin and writes it to the home Sprite with mode `0600`.
-5. **Configure.** Copy [`doorman.config.example.json`](doorman.config.example.json) to the home Sprite as `doorman.config.json` and fill in your connector IDs.
+   It installs Doorman from GitHub, asks for the token (stored with mode `0600`) and applies [`policies/home/network.json`](policies/home/network.json).
+5. **Configure.** Fill in [`doorman.config.example.json`](doorman.config.example.json) with your connector IDs and push it:
+
+   ```bash
+   sprite file push -s doorman-home doorman.config.json /home/sprite/.config/doorman/config.json
+   ```
+
 6. **Run.**
 
    ```bash
