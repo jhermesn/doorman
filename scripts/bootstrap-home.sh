@@ -7,7 +7,7 @@ cd "$(dirname "$0")/.."
 
 sprite list -o "$org" | grep -qx "$home" ||
   sprite create -o "$org" --skip-console --label doorman-home "$home"
-sprite exec --no-stdin -o "$org" -s "$home" -- bash -lc "npm install --global --prefix ~/.local '$source'"
+sprite exec --no-stdin -o "$org" -s "$home" -- bash -lc "npm install --global --prefix ~/.local --allow-git=root '$source'"
 
 # The token goes through stdin to the filesystem API, so it never lands in argv or on disk here.
 read -rsp "Sprites token restricted to doorman-w- (Enter keeps the current one): " token || true
