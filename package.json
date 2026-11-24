@@ -1,0 +1,33 @@
+{
+  "name": "doorman",
+  "version": "0.1.0",
+  "description": "No repro, no entry: a maintainer agent that reproduces issues and checks PR claims inside locked-down Fly.io Sprites.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "bin": {
+    "doorman": "dist/cli.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check .",
+    "format": "biome format --write .",
+    "test": "vitest run",
+    "check": "npm run lint && npm run typecheck && npm run test"
+  },
+  "dependencies": {
+    "@fly/sprites": "0.2.4"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.6.6",
+    "@types/node": "24.19.2",
+    "typescript": "7.0.2",
+    "vitest": "5.1.0"
+  }
+}
