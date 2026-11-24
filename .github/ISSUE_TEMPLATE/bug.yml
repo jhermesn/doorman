@@ -1,0 +1,29 @@
+name: Bug report
+description: Doorman did something wrong. A minimal reproduction gets it fixed fastest.
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: How to reproduce
+      description: The command you ran, the issue or pull request it ran on, and your config with connector IDs removed.
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Doorman commit
+      placeholder: 9df70d0
