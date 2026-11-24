@@ -35,23 +35,11 @@ Everything strangers send is treated as untrusted code. It runs on a computer th
 
 ## How it works
 
-```mermaid
-flowchart LR
-  GH[GitHub issue or PR] -->|GitHub Action: sprite exec| HOME
+<p align="center">
+  <img src="docs/architecture.drawio.svg" alt="Architecture: a GitHub Action runs Doorman on the doorman-home Sprite, which calls GitHub, Jev, Ollama, Pinecone and Box through the Sprites connector gateway and drives a locked-down doorman-w worker Sprite that has registries-only egress, no sudo, a 2 GB memory cap and no credentials" width="900">
+</p>
 
-  subgraph HOME[doorman-home Sprite]
-    A[Doorman agent]
-  end
-
-  A -->|connectors| C[(GitHub · Jev · Ollama · Pinecone · Box)]
-  A -->|restore, exec, read files| W
-
-  subgraph W[doorman-w-* worker Sprite]
-    R[repo at a clean checkpoint<br/>registries-only egress · no sudo · no keys]
-  end
-
-  A -->|comment, label, status| GH
-```
+<sub>Edit the diagram by opening <code>docs/architecture.drawio.svg</code> in draw.io.</sub>
 
 1. **Screen.** Jev answers three typed questions about the report: does it try to instruct an automated agent, what kind of issue is it, and is there enough to attempt a reproduction. Pinecone looks for near-duplicates.
 2. **Reset.** The worker is restored to its golden checkpoint, which takes about 3 seconds.
@@ -124,4 +112,4 @@ Issues and pull requests are welcome. [CONTRIBUTING.md](CONTRIBUTING.md) covers 
 
 ## License
 
-[Apache-2.0](LICENSE). The logo is built on Lucide's `door-open` icon ([ISC](assets/LICENSE-lucide.txt)). Doorman is an independent project and is not affiliated with Fly.io, TypeSafe AI, Ollama, Pinecone or Box.
+[Apache-2.0](LICENSE). The logo and the diagram use [Lucide](https://lucide.dev) icons ([ISC](assets/LICENSE-lucide.txt)) and brand icons from [Simple Icons](https://simpleicons.org) (CC0); brand names and logos belong to their owners. Doorman is an independent project and is not affiliated with Fly.io, TypeSafe AI, Ollama, Pinecone or Box.
