@@ -1,6 +1,4 @@
 import { createHash } from "node:crypto";
-import { appendFileSync, mkdirSync } from "node:fs";
-import { dirname } from "node:path";
 
 export type Verdict =
   | "confirmed"
@@ -43,10 +41,4 @@ export interface RunRecord {
 
 export function sha256(text: string): string {
   return createHash("sha256").update(text).digest("hex");
-}
-
-/** One JSON line per job. Issue text is stored only as a hash. */
-export function appendRun(path: string, record: RunRecord): void {
-  mkdirSync(dirname(path), { recursive: true });
-  appendFileSync(path, `${JSON.stringify(record)}\n`);
 }

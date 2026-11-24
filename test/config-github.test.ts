@@ -11,7 +11,6 @@ const valid = {
   box: { folderId: "1" },
   workerPrefix: "doorman-w-",
   spritesTokenFile: "/tmp/token",
-  runLog: "/tmp/runs.jsonl",
   repos: [
     { repo: "acme/widgets", worker: "doorman-w-widgets", golden: "v1", dir: "/w", write: true },
   ],

@@ -32,4 +32,4 @@ test/               Vitest, one file per behaviour
 3. `prepareWorker` restores the golden checkpoint and runs the repo's trusted `prepare` command.
 4. `reproduce` loops: model → tool call → `gate` → `workers.run` → output back to the model.
 5. `verify` runs `.doorman/repro.sh` three times; `finalVerdict` trusts the script, not the model.
-6. The report is posted, the label added, the script saved to Box, the issue upserted to Pinecone, and the run appended to `runs.jsonl`.
+6. The report is posted, the label added, the script saved to Box, the issue upserted to Pinecone, and one JSON event for the run written to stderr.

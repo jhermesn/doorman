@@ -8,8 +8,6 @@ import type { Config } from "./config.js";
 import { createGitHub } from "./github.js";
 import { SpritesWorkers, type Workers } from "./workers.js";
 
-const GATEWAY = "https://api.sprites.dev/v1/gateway";
-
 /** The gateway injects the real credentials; SDKs that insist on a key get this instead. */
 const NO_KEY = "set-by-sprites-gateway";
 
@@ -26,7 +24,7 @@ export interface Deps {
 /** Every provider is reached through its Sprites connector, so Doorman holds no provider keys. */
 export function createDeps(config: Config): Deps {
   const via = (provider: keyof Config["connectors"]) =>
-    `${GATEWAY}/${provider}/${config.connectors[provider]}`;
+    `${config.gateway}/${provider}/${config.connectors[provider]}`;
   const pinecone = new Pinecone({ apiKey: NO_KEY });
   const writable = new Set(config.repos.filter((r) => r.write).map((r) => r.repo));
   const ollama = createOpenAICompatible({ name: "ollama", baseURL: `${via("ollama")}/v1` });
