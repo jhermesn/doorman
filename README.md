@@ -99,6 +99,28 @@ You need a Fly.io account with Sprites, the `sprite` CLI, Node 24, and accounts 
    sprite exec -s doorman-home -- doorman check-pr owner/repo 57
    ```
 
+7. **Automate.** In the Fly.io dashboard, create a Sprites token restricted to the single Sprite `doorman-home`, store it as the `DOORMAN_SPRITES_TOKEN` secret, and add this workflow:
+
+   ```yaml
+   name: Doorman
+   on:
+     issues:
+       types: [opened]
+     pull_request_target:
+       types: [opened, synchronize]
+   permissions: {}
+   jobs:
+     doorman:
+       runs-on: ubuntu-latest
+       steps:
+         - uses: jhermesn/doorman@<commit-sha>
+           with:
+             org: <fly-org>
+             sprites-token: ${{ secrets.DOORMAN_SPRITES_TOKEN }}
+   ```
+
+   The job checks out nothing and needs no GitHub permissions: Doorman reaches GitHub through its connector.
+
 ## Limitations
 
 - Reproduction works best on JavaScript and TypeScript projects whose bugs can be shown with a script. UI, timing and hardware bugs usually end as `cannot-reproduce`.
