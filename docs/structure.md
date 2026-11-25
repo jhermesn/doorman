@@ -22,7 +22,7 @@ src/
     prcheck.ts      PR flow: base vs head with the stored reproduction
 scripts/            bootstrap-worker.sh, bootstrap-home.sh (run from a maintainer machine)
 policies/           Sprite network, privileges and memory policies the scripts apply
-eval/               injection corpus (12 attacks, 5 benign traps), its runner and summarizer
+eval/               injection corpus (12 attacks, 5 benign traps), shadow-mode runner, scorers
 test/               Vitest, one file per behaviour
 ```
 
@@ -38,3 +38,7 @@ test/               Vitest, one file per behaviour
 ## Injection eval
 
 `eval/injection/` holds one Markdown report per case; `eval/expected.json` says whether each is an attack or a benign trap. On the home Sprite, `eval/run.sh <owner/repo> results.jsonl` triages every case with `--issue-file`, which posts nothing, skips Pinecone and Box writes, and records `mode: "eval"`. Each case still runs on the repo's worker, so attacks that pass Jev meet the worker policies. `node eval/summarize.ts results.jsonl` prints which layer stopped each case and every command that reached the worker.
+
+## Shadow mode
+
+`doorman triage <owner/repo> <issue> --shadow` replays a closed issue without writing anything: it checks out the last default-branch commit before the issue was filed, then runs the usual screen, reproduce and verify steps. `eval/shadow.sh <owner/repo> results.jsonl <issue>...` runs a list of issues on the home Sprite. `node eval/score-shadow.ts truth.json results.jsonl` compares the verdicts with a ground-truth file mapping each issue number to `bug` (a fix was merged for it) or `not-a-bug`, and prints the precision and recall of `confirmed`. The repo needs a `repos[]` entry (with `write` left off) and a worker with its code.
