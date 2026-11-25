@@ -12,6 +12,25 @@ Anyone can open an issue or a pull request. Their text reaches a language model,
 | The maintainer's attention                                   | Injection screen, duplicate check, verified-only "confirmed"                                                     |
 | Maintainer notes in Box (`env.md`, `quirks.md`, `policy.md`) | Doorman reads them as trusted guidance and refuses to write them, so a report can't rewrite its own instructions |
 
+## Layers
+
+The agent and the code it runs live on different computers. Doorman's process sits on `doorman-home`; anything a bug report causes to run happens on a `doorman-w-*` worker.
+
+| Layer                     | What it stops                                                         | Where it lives                                      |
+| :------------------------ | :-------------------------------------------------------------------- | :-------------------------------------------------- |
+| Prompt boundary           | Report text is wrapped as data and the model is told not to follow it | `src/agent/reproduce.ts`                            |
+| Read-only notes           | A report rewriting the maintainer's notes in Box                      | `src/box.ts` refuses to write them                  |
+| Injection screen          | Reports aimed at automated agents are not run at all                  | Jev, before any command                             |
+| Command gate              | `curl \| sh`, raw sockets, credential reads, persistence, miners      | Jev, on the command alone                           |
+| Worker egress             | Any host except package registries and GitHub                         | Sprite network policy                               |
+| Worker privileges         | `sudo`, privilege escalation                                          | Sprite privileges policy                            |
+| Worker resources          | Memory exhaustion (the worker reboots, the job ends as `oom`)         | Sprite resources policy                             |
+| No keys on workers        | Exfiltrating credentials                                              | Connector access policies match `doorman-home` only |
+| Scoped orchestrator token | Touching anything but workers                                         | Sprites token restricted to the `doorman-w-` prefix |
+| GitHub allowlist          | Writing to repositories Doorman isn't configured for                  | Connector endpoint list plus a client-side guard    |
+
+Each layer was tested on a real Sprite; the commands and results are in [spikes.md](spikes.md).
+
 ## Worker hardening (applied by `scripts/bootstrap-worker.sh`)
 
 - Network policy: allow npm/yarn registries, `github.com`, `codeload.github.com`, `*.githubusercontent.com`; deny everything else. Blocked names fail at DNS.
