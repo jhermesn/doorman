@@ -1,5 +1,6 @@
 import type { Verdict } from "../runlog.js";
 import { fill, text } from "../text.js";
+import { REPRO_FILE } from "./reproduce.js";
 import type { Verification } from "./verify.js";
 
 export interface ReportInput {
@@ -9,6 +10,8 @@ export interface ReportInput {
   duplicateOf?: number;
   verification?: Verification;
   script?: string;
+  /** A checkpoint of the worker in its failing state, for maintainers to restore. */
+  stepInto?: { worker: string; checkpoint: string; dir: string };
   blockedCommands: number;
   /** False when no Jev connector is configured, so commands ran without the gate. */
   gated: boolean;
@@ -65,6 +68,10 @@ export function renderReport(r: ReportInput): string {
   if (r.script) lines.push(details(t.script, fence("bash", r.script)), "");
   if (r.verification?.lastOutput) {
     lines.push(details(t.output, fence("text", r.verification.lastOutput.slice(-6_000))), "");
+  }
+  if (r.stepInto) {
+    const commands = fill(t.stepIntoCommands, { ...r.stepInto, reproFile: REPRO_FILE });
+    lines.push(details(t.stepInto, `${t.stepIntoNote}\n\n${fence("bash", commands)}`), "");
   }
   lines.push(t.footer);
   return lines.join("\n");

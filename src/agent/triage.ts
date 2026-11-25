@@ -102,6 +102,7 @@ export async function triageIssue(
   let verification: Verification | undefined;
   let script: string | undefined;
   let restoreMs = 0;
+  let checkpoint: SavedState = {};
 
   if (!verdict) {
     restoreMs = await prepareWorker(deps, repo, opts.ref);
@@ -128,6 +129,7 @@ export async function triageIssue(
     verdict = finalVerdict(repro, verification);
     if (verdict === "confirmed") {
       script = await workers.readFile(repo.worker, `${repo.dir}/${REPRO_FILE}`);
+      if (opts.mode === "demo") checkpoint = await saveFailingState(deps, repo, number);
     }
   }
 
@@ -141,6 +143,9 @@ export async function triageIssue(
     ...(screening.duplicateOf ? { duplicateOf: screening.duplicateOf.number } : {}),
     ...(verification ? { verification } : {}),
     ...(script ? { script } : {}),
+    ...(checkpoint.id
+      ? { stepInto: { worker: repo.worker, checkpoint: checkpoint.id, dir: repo.dir } }
+      : {}),
     blockedCommands: repro?.steps.filter((s) => s.gate?.decision === "block").length ?? 0,
     gated: Boolean(jev),
     wallMs,
@@ -203,6 +208,21 @@ export async function triageIssue(
     wallMs,
   };
   return { verdict, report, record };
+}
+
+interface SavedState {
+  id?: string;
+  error?: string;
+}
+
+/** A failed checkpoint only loses the step-into shortcut, so the verdict still stands. */
+async function saveFailingState(deps: Deps, repo: RepoConfig, issue: number): Promise<SavedState> {
+  try {
+    const id = await deps.workers.checkpoint(repo.worker, `doorman repro #${issue}`);
+    return id ? { id } : { error: "the checkpoint stream returned no version id" };
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : String(error) };
+  }
 }
 
 function unfinishedButProven(repro: ReproOutcome | undefined, verdict: Verdict): boolean {
