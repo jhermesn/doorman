@@ -1,21 +1,34 @@
 # Product
 
-Doorman does the first pass on incoming bug reports and fix claims for open-source maintainers.
+Doorman does the first pass on bug reports and fix claims, so a maintainer starts from evidence instead of a description.
 
 ## What it does
 
-- **Issue triage.** For a new issue: screen it, reproduce it in a clean worker, verify the reproduction three times, then comment and label. Verdicts: `confirmed`, `needs-info`, `cannot-reproduce`, `duplicate`, `not-a-bug`, `blocked`, `oom`, `error`.
-- **PR claim check.** For a PR whose title or body says `fixes #N`: run #N's stored reproduction on the base commit and on the PR head. Success means it fails on base and passes on the head.
-- **Memory.** Per-repository Markdown notes in Box that the maintainer edits. Doorman reads them before each job and appends to `log.md`.
-- **Shadow mode.** Read-only runs over closed issues of public repositories, compared against the maintainers' outcomes. Never writes to repositories it doesn't own.
+- **Issues.** Screens each new issue, writes a script that shows the bug on a clean worker, runs it 3 times, then comments and labels the issue.
+- **Pull requests.** When a PR says `Fixes #N`, runs the script from #N on the base commit and on the PR. The fix holds when the script fails on base and passes on the PR.
+- **Memory.** Reads the maintainer's Markdown notes in Box before each job and appends a line to `log.md`.
+- **Shadow mode.** Replays closed issues of a public repository read-only, to compare its verdicts with what the maintainers decided.
+
+## Verdicts
+
+| Verdict            | Meaning                                                            |
+| :----------------- | :----------------------------------------------------------------- |
+| `confirmed`        | The script failed on every run                                     |
+| `cannot-reproduce` | Doorman tried, but no script failed consistently                   |
+| `needs-info`       | The report has nothing runnable, or the model named what's missing |
+| `duplicate`        | An earlier issue describes the same defect                         |
+| `not-a-bug`        | A question, feature request, docs issue or spam                    |
+| `blocked`          | The report tries to steer an automated agent, so nothing ran       |
+| `oom`              | The worker ran out of memory                                       |
+| `error`            | Doorman failed internally                                          |
 
 ## What it never does
 
-- Push code, merge, close issues, or approve PRs.
-- Run anything a report asks for when the injection screen flags it.
-- Write to a repository that isn't marked `"write": true` in its config.
-- Store issue text in its run log (only a SHA-256 hash).
+- Push code, merge, close issues or approve pull requests.
+- Run anything from a report that the injection screen flags.
+- Write to a repository whose config doesn't say `"write": true`.
+- Keep issue text in its run log; only a SHA-256 hash is stored.
 
 ## Who it is for
 
-Maintainers of small and medium JavaScript or TypeScript projects who want reproductions before they spend time on a report.
+Maintainers of small and medium JavaScript or TypeScript projects who want a reproduction before they spend time on a report.
