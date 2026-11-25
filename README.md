@@ -67,6 +67,8 @@ jobs:
 
 Doorman works best on JavaScript and TypeScript projects whose bugs can be shown with a script. It never pushes code.
 
+Setup needs a Fly.io organization with two Sprites (home and worker), the `sprite` CLI and an Ollama Cloud account, and it has only been tested on npm projects so far. Measured results: [docs/results.md](docs/results.md).
+
 ## Contributing
 
 Issues and pull requests are welcome; see [CONTRIBUTING.md](CONTRIBUTING.md) and [AGENTS.md](AGENTS.md). Report vulnerabilities as described in [SECURITY.md](SECURITY.md).

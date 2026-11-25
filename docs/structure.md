@@ -22,7 +22,7 @@ src/
     prcheck.ts      PR flow: base vs head with the stored reproduction
 scripts/            bootstrap-worker.sh, bootstrap-home.sh (run from a maintainer machine)
 policies/           Sprite network, privileges and memory policies the scripts apply
-eval/               injection corpus (12 attacks, 5 benign traps), shadow-mode runner, scorers
+eval/               injection corpus (12 attacks, 5 benign traps), shadow-mode runner, scorers (see eval/README.md)
 test/               Vitest, one file per behaviour
 ```
 
