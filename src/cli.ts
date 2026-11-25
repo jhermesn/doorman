@@ -1,17 +1,20 @@
 #!/usr/bin/env node
+import { readFileSync } from "node:fs";
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { parseArgs } from "node:util";
 import { checkPr } from "./agent/prcheck.js";
-import { triageIssue } from "./agent/triage.js";
+import { fetchIssue, issueFromMarkdown, triageIssue } from "./agent/triage.js";
 import { createDeps } from "./clients.js";
 import { loadConfig, repoConfig } from "./config.js";
 
 const USAGE = `Usage:
-  doorman triage <owner/repo> <issue> [--dry-run] [--config <file>]
+  doorman triage <owner/repo> <issue> [--dry-run] [--issue-file <file.md>] [--config <file>]
   doorman check-pr <owner/repo> <pr> [--dry-run] [--config <file>]
 
-  --dry-run   print the report instead of posting it
+  --dry-run      print the report instead of posting it
+  --issue-file   triage this Markdown report (first line is the title) instead of
+                 fetching <issue>; nothing is written anywhere (eval corpus)
   --config    defaults to $DOORMAN_CONFIG, then ~/.config/doorman/config.json
 
   The report goes to stdout; one JSON event per run goes to stderr.`;
@@ -27,6 +30,7 @@ async function main(argv: string[]): Promise<number> {
     allowPositionals: true,
     options: {
       "dry-run": { type: "boolean", default: false },
+      "issue-file": { type: "string" },
       config: {
         type: "string",
         default: process.env.DOORMAN_CONFIG ?? join(homedir(), ".config/doorman/config.json"),
@@ -42,12 +46,22 @@ async function main(argv: string[]): Promise<number> {
   }
   const deps = createDeps(loadConfig(values.config));
   const repo = repoConfig(deps.config, repoName);
-  const write = !values["dry-run"];
+  const file = values["issue-file"];
+  const write = !values["dry-run"] && !file;
 
   if (command === "triage") {
-    const result = await triageIssue(deps, repo, number, { mode: "demo", write });
+    const issue = file
+      ? issueFromMarkdown(readFileSync(file, "utf8"), number)
+      : await fetchIssue(deps.github, repo.repo, number);
+    const mode = file ? "eval" : "demo";
+    const result = await triageIssue(deps, repo, issue, { mode, write });
     console.log(result.report);
-    emit({ level: "info", event: "triage", ...result.record });
+    emit({
+      level: "info",
+      event: "triage",
+      ...(file ? { case: basename(file) } : {}),
+      ...result.record,
+    });
     return 0;
   }
   if (command === "check-pr") {

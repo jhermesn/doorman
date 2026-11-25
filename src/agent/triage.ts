@@ -1,13 +1,14 @@
 import { randomUUID } from "node:crypto";
+import type { Octokit } from "@octokit/rest";
 import { type BoxMemory, MEMORY_FILES } from "../box.js";
 import type { Deps } from "../clients.js";
 import type { RepoConfig } from "../config.js";
 import { ownerRepo, upsertComment } from "../github.js";
-import { type RunRecord, sha256, type Verdict } from "../runlog.js";
+import { type RunMode, type RunRecord, sha256, type Verdict } from "../runlog.js";
 import { text } from "../text.js";
 import { renderReport } from "./report.js";
 import { REPRO_FILE, type ReproOutcome, reproduce } from "./reproduce.js";
-import { issueText, screen } from "./screen.js";
+import { type IssueLike, issueText, screen } from "./screen.js";
 import { earlyVerdict, finalVerdict, LABELS } from "./verdict.js";
 import { type Verification, verify } from "./verify.js";
 
@@ -15,6 +16,32 @@ export interface TriageResult {
   verdict: Verdict;
   report: string;
   record: RunRecord;
+}
+
+export interface IssueInput extends IssueLike {
+  labels: string[];
+}
+
+export async function fetchIssue(
+  github: Octokit,
+  repo: string,
+  number: number,
+): Promise<IssueInput> {
+  const { data } = await github.rest.issues.get({ ...ownerRepo(repo), issue_number: number });
+  if (data.pull_request) throw new Error(`#${number} is a pull request; use check-pr`);
+  return {
+    number,
+    title: data.title,
+    body: data.body ?? null,
+    labels: data.labels.map((l) => (typeof l === "string" ? l : (l.name ?? ""))),
+  };
+}
+
+/** A report kept as Markdown, as in the eval corpus: the first line is the title. */
+export function issueFromMarkdown(markdown: string, number: number): IssueInput {
+  const [first = "", ...rest] = markdown.trim().split("\n");
+  const title = first.startsWith("# ") ? first.slice(2) : first;
+  return { number, title: title.trim(), body: rest.join("\n").trim(), labels: [] };
 }
 
 export function namespaceFor(repo: string): string {
@@ -56,16 +83,15 @@ export async function prepareWorker(
 export async function triageIssue(
   deps: Deps,
   repo: RepoConfig,
-  number: number,
-  opts: { mode: "demo" | "shadow"; write: boolean },
+  issue: IssueInput,
+  opts: { mode: RunMode; write: boolean },
 ): Promise<TriageResult> {
   const started = Date.now();
   const { config, github, jev, model, box, workers } = deps;
+  const { number } = issue;
   const target = { ...ownerRepo(repo.repo), issue_number: number };
-  const { data: issue } = await github.rest.issues.get(target);
-  if (issue.pull_request) throw new Error(`#${number} is a pull request; use check-pr`);
-
-  const index = deps.issueIndex?.(namespaceFor(repo.repo));
+  // Eval reports are synthetic: they must not become duplicate candidates for real issues.
+  const index = opts.mode === "eval" ? undefined : deps.issueIndex?.(namespaceFor(repo.repo));
   const folderId = box ? await box.folderFor(repo.repo) : undefined;
   const screening = await screen(jev, index, issue);
   let verdict = earlyVerdict(screening);
@@ -122,8 +148,8 @@ export async function triageIssue(
     await upsertComment(github, target, report);
     const label = LABELS[verdict];
     // A rerun replaces the previous verdict's label instead of stacking a contradicting one.
-    for (const old of issue.labels.map((l) => (typeof l === "string" ? l : l.name))) {
-      if (old && old !== label && Object.values(LABELS).includes(old)) {
+    for (const old of issue.labels) {
+      if (old !== label && Object.values(LABELS).includes(old)) {
         await github.rest.issues.removeLabel({ ...target, name: old });
       }
     }
