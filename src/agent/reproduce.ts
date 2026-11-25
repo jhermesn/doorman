@@ -114,6 +114,8 @@ export async function reproduce(
       messages,
       tools,
       temperature: 0.2,
+      // Without a cap the provider reserves the whole context for output, and long runs overflow it.
+      maxOutputTokens: 8_000,
       stopWhen: [stepCountIs(ctx.maxSteps - modelSteps), hasToolCall("finish"), () => crashed],
     });
     modelSteps += result.steps.length;
