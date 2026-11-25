@@ -33,6 +33,20 @@ Everything strangers send is treated as untrusted code. It runs on a computer th
 | 📝  | **Learns from you**             | Its memory is Markdown in a Box folder (`env.md`, `quirks.md`, `policy.md`) that you can read and edit like a colleague's notes.                                      |
 | 🔑  | **Holds no provider keys**      | GitHub, Jev, Ollama, Pinecone and Box are reached through Sprites connectors, so the keys stay in Fly.io's gateway.                                                   |
 
+## See it work
+
+On the [pie-utils](https://github.com/jhermesn/pie-utils) demo repo, a report that `slugify` drops accented letters was reproduced 42 seconds after it was opened:
+
+<p align="center">
+  <img src="docs/img/issue-confirmed.webp" alt="Doorman comment on an issue: Reproduced, failed the same way 3 out of 3 runs in a clean, locked-down sandbox in 42 seconds, with the run results and collapsible reproduction script and output" width="820">
+</p>
+
+A pull request that claims to fix a lost-cent bug but only swaps the rounding function gets a failing `doorman/repro` status, because the stored reproduction still fails on it:
+
+<p align="center">
+  <img src="docs/img/pr-fix-doesnt-hold.webp" alt="Doorman comment on a pull request: The fix doesn't hold, the confirmed reproduction of issue 4 fails 3 out of 3 runs on the base branch and 3 out of 3 runs on the pull request" width="740">
+</p>
+
 ## How it works
 
 <p align="center">
