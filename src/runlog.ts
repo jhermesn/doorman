@@ -19,13 +19,16 @@ export interface Step {
   crashed?: boolean;
 }
 
+/** demo: posts and remembers; shadow: read-only on real repos; eval: a corpus file, nothing written. */
+export type RunMode = "demo" | "shadow" | "eval";
+
 export interface RunRecord {
   runId: string;
   ts: string;
   repo: string;
   kind: "issue" | "pr";
   ref: number;
-  mode: "demo" | "shadow";
+  mode: RunMode;
   issueSha256: string;
   screen?: { injectionP: number; kind: string; duplicateOf: string | null };
   steps: Step[];
