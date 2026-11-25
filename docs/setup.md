@@ -53,7 +53,7 @@ You need a Fly.io account with Sprites, the `sprite` CLI, Node 24 and an Ollama 
      doorman:
        runs-on: ubuntu-latest
        steps:
-         - uses: jhermesn/doorman@v0.1.0
+         - uses: jhermesn/doorman@v0.2.0
            with:
              org: <fly-org>
              sprites-token: ${{ secrets.DOORMAN_SPRITES_TOKEN }}
