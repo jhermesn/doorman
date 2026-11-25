@@ -2,7 +2,7 @@ import type { BoxClient } from "box-node-sdk";
 import { describe, expect, it } from "vitest";
 import { BoxMemory, ProtectedFileError } from "../src/box.js";
 import { ConfigError, parseConfig } from "../src/config.js";
-import { createGitHub, upsertComment, WriteNotAllowedError } from "../src/github.js";
+import { commitBefore, createGitHub, upsertComment, WriteNotAllowedError } from "../src/github.js";
 
 const valid = {
   connectors: { github: "g", ollama: "o" },
@@ -128,5 +128,21 @@ describe("upsertComment", () => {
     ],
   ])("given %s, when Doorman reports, then it sends %s", async (_case, existing, expected) => {
     expect(await run(existing)).toBe(expected);
+  });
+});
+
+describe("commitBefore", () => {
+  it("given a report date, when asked, then it returns the last commit before it", async () => {
+    let url = "";
+    const fetch: typeof globalThis.fetch = async (input) => {
+      url = String(input);
+      return Response.json([{ sha: "abc123" }]);
+    };
+    const github = createGitHub("https://gateway.test/github/c", new Set(), fetch);
+    const sha = await commitBefore(github, "acme/widgets", "2025-03-26T10:00:00Z");
+    expect({ sha, until: new URL(url).searchParams.get("until") }).toEqual({
+      sha: "abc123",
+      until: "2025-03-26T10:00:00Z",
+    });
   });
 });

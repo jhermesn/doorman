@@ -41,6 +41,18 @@ export function createGitHub(
   return github;
 }
 
+/** The default-branch commit a reporter was looking at: the last one before the report. */
+export async function commitBefore(github: Octokit, repo: string, date: string): Promise<string> {
+  const { data } = await github.rest.repos.listCommits({
+    ...ownerRepo(repo),
+    until: date,
+    per_page: 1,
+  });
+  const sha = data[0]?.sha;
+  if (!sha) throw new Error(`${repo} has no commit before ${date}`);
+  return sha;
+}
+
 /** Doorman's earlier report on an issue, written by someone with write access. */
 export async function findDoormanComment(github: Octokit, issue: IssueRef) {
   const comments = await github.paginate(github.rest.issues.listComments, {
