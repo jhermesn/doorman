@@ -79,6 +79,9 @@
     "gateOff": "off: no Jev connector, worker policies only",
     "script": "Reproduction script",
     "output": "Output of the last run",
+    "stepInto": "Step into the failing environment",
+    "stepIntoNote": "The worker was saved right after the last failing run. Restore it and open a shell to poke at the bug yourself. Doorman resets this worker at the start of its next job.",
+    "stepIntoCommands": "sprite restore -s {worker} {checkpoint}\nsprite console -s {worker}\ncd {dir} && bash {reproFile}",
     "unfinishedConfirmed": "The model ran out of steps before writing a summary, but the script below fails the same way on every run, so the bug is confirmed.",
     "footer": "<sub>Doorman reproduces reports inside an isolated Fly.io Sprite and gates every command. It never pushes code. Not right? Reply and a maintainer will take it from here.</sub>"
   },

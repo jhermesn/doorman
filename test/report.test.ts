@@ -109,3 +109,28 @@ describe("outputFromReport", () => {
     expect(outputFromReport(md)).toBe("expected 2, got 3");
   });
 });
+
+describe("step into", () => {
+  const base = {
+    verdict: "confirmed" as const,
+    summary: "",
+    verification: failing,
+    script: "node repro.mjs",
+    blockedCommands: 0,
+    gated: true,
+    wallMs: 1_000,
+  };
+
+  it("given a saved failing state, when rendered, then the restore commands name the worker and checkpoint", () => {
+    const md = renderReport({
+      ...base,
+      stepInto: { worker: "doorman-w-pie", checkpoint: "v14", dir: "/home/sprite/work/pie" },
+    });
+    expect(md).toContain("sprite restore -s doorman-w-pie v14");
+    expect(md).toContain("cd /home/sprite/work/pie && bash .doorman/repro.sh");
+  });
+
+  it("given no saved state, when rendered, then there is no step-into section", () => {
+    expect(renderReport(base)).not.toContain("Step into");
+  });
+});
