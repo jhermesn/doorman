@@ -1,6 +1,6 @@
 {
   "name": "doorman",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "No repro, no entry: a maintainer agent that reproduces issues and checks PR claims inside locked-down Fly.io Sprites.",
   "license": "Apache-2.0",
   "type": "module",
