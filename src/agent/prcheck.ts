@@ -1,8 +1,11 @@
+import { randomUUID } from "node:crypto";
 import type { TypeSafeClient } from "@typesafe-ai/sdk";
 import type { Deps } from "../clients.js";
 import type { RepoConfig } from "../config.js";
 import { findDoormanComment, ownerRepo, upsertComment } from "../github.js";
+import type { PrRecord } from "../runlog.js";
 import { fill, text } from "../text.js";
+import { VERSION } from "../version.js";
 import { details, fence, outputFromReport, runIcons, scriptFromReport } from "./report.js";
 import { REPRO_FILE } from "./reproduce.js";
 import { prepareWorker } from "./triage.js";
@@ -30,6 +33,7 @@ export interface PrCheck {
   state: "success" | "failure" | "error";
   description: string;
   report: string;
+  record: PrRecord;
 }
 
 /**
@@ -66,11 +70,18 @@ async function runAt(
   repo: RepoConfig,
   ref: string,
   script: string,
-): Promise<Verification> {
-  await prepareWorker(deps, repo, ref);
+): Promise<{ verification: Verification; restoreMs: number }> {
+  const restoreMs = await prepareWorker(deps, repo, ref);
   await deps.workers.writeFile(repo.worker, `${repo.dir}/${REPRO_FILE}`, script);
   const { verifyRuns, commandTimeoutMs } = deps.config.limits;
-  return verify(deps.workers, repo.worker, repo.dir, verifyRuns, commandTimeoutMs);
+  const verification = await verify(
+    deps.workers,
+    repo.worker,
+    repo.dir,
+    verifyRuns,
+    commandTimeoutMs,
+  );
+  return { verification, restoreMs };
 }
 
 interface StoredRepro {
@@ -108,12 +119,29 @@ function row(label: string, v: Verification): string {
   return `| **${label}** | ${runIcons(v)} | ${v.outcome} |`;
 }
 
+function prRecord(
+  repo: string,
+  number: number,
+  fields: Omit<PrRecord, "runId" | "ts" | "doormanVersion" | "repo" | "kind" | "ref">,
+): PrRecord {
+  return {
+    runId: randomUUID(),
+    ts: new Date().toISOString(),
+    doormanVersion: VERSION,
+    repo,
+    kind: "pr",
+    ref: number,
+    ...fields,
+  };
+}
+
 export async function checkPr(
   deps: Deps,
   repo: RepoConfig,
   number: number,
   opts: { write: boolean },
 ): Promise<PrCheck> {
+  const started = Date.now();
   const target = ownerRepo(repo.repo);
   const { data: pr } = await deps.github.rest.pulls.get({ ...target, pull_number: number });
   const issue = claimedIssue(pr.title, pr.body);
@@ -121,16 +149,27 @@ export async function checkPr(
 
   if (!issue || !stored) {
     const description = issue ? fill(t.status.noRepro, { issue }) : t.status.noClaim;
-    return { issue, state: "error", description, report: description };
+    const record = prRecord(repo.repo, number, {
+      issue: issue ?? null,
+      state: "error",
+      baseRuns: [],
+      headRuns: [],
+      sameFailureP: null,
+      restoreMs: 0,
+      wallMs: Date.now() - started,
+    });
+    return { issue, state: "error", description, report: description, record };
   }
 
   const { script, output } = stored;
-  const base = await runAt(deps, repo, pr.base.sha, script);
+  const onBase = await runAt(deps, repo, pr.base.sha, script);
+  const base = onBase.verification;
   const sameFailureP =
     deps.jev && output && base.outcome === "fails"
       ? await sameFailure(deps.jev, output, base.lastOutput)
       : undefined;
-  const head = await runAt(deps, repo, `pull/${number}/head`, script);
+  const onHead = await runAt(deps, repo, `pull/${number}/head`, script);
+  const head = onHead.verification;
   const verdict = judge(base, head, sameFailureP);
   const match =
     sameFailureP === undefined
@@ -167,6 +206,15 @@ export async function checkPr(
     });
     await upsertComment(deps.github, { ...target, issue_number: number }, report);
   }
+  const record = prRecord(repo.repo, number, {
+    issue,
+    state: verdict.state,
+    baseRuns: base.exitCodes,
+    headRuns: head.exitCodes,
+    sameFailureP: sameFailureP ?? null,
+    restoreMs: onBase.restoreMs + onHead.restoreMs,
+    wallMs: Date.now() - started,
+  });
   return {
     issue,
     base,
@@ -174,5 +222,6 @@ export async function checkPr(
     ...(sameFailureP === undefined ? {} : { sameFailureP }),
     ...verdict,
     report,
+    record,
   };
 }

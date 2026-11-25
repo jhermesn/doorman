@@ -78,13 +78,8 @@ async function main(argv: string[]): Promise<number> {
     emit({
       level: "info",
       event: "check-pr",
-      repo: repo.repo,
-      ref: number,
-      issue: result.issue ?? null,
-      state: result.state,
       description: result.description,
-      base: result.base?.exitCodes ?? [],
-      head: result.head?.exitCodes ?? [],
+      ...result.record,
     });
     // Only a disproven fix claim fails the job; PRs that claim nothing have nothing to check.
     return result.state === "failure" ? 1 : 0;
