@@ -74,6 +74,8 @@ describe("finalVerdict", () => {
     [repro(), classify([run(0), run(0), run(0)]), "cannot-reproduce"],
     [repro({ claim: "not-reproduced" }), undefined, "cannot-reproduce"],
     [repro({ claim: "needs-info" }), undefined, "needs-info"],
+    [repro({ claim: "unfinished" }), classify([run(1), run(1), run(1)]), "confirmed"],
+    [repro({ claim: "unfinished" }), classify([run(0), run(0), run(0)]), "cannot-reproduce"],
     [repro({ crashed: true }), undefined, "oom"],
   ])("given claim %j and verification, when judged, then the verdict is %s", (r, v, expected) => {
     expect(finalVerdict(r, v)).toBe(expected);

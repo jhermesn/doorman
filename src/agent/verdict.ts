@@ -16,11 +16,12 @@ export function earlyVerdict(s: Screening): Verdict | undefined {
   return undefined;
 }
 
-/** The agent's claim only counts when the repro script agrees with it, every time. */
+/** The script decides: a claim, or a run that ended without one, counts only when it fails every time. */
 export function finalVerdict(repro: ReproOutcome, v: Verification | undefined): Verdict {
   if (repro.crashed || v?.crashed) return "oom";
   if (repro.claim === "needs-info") return "needs-info";
-  if (repro.claim === "reproduced" && v?.outcome === "fails") return "confirmed";
+  const attempted = repro.claim === "reproduced" || repro.claim === "unfinished";
+  if (attempted && v?.outcome === "fails") return "confirmed";
   return "cannot-reproduce";
 }
 

@@ -34,7 +34,7 @@
     ],
     "noNotes": "(no notes yet)",
     "prompt": "Bug report:\n\n<report>\n{report}\n</report>",
-    "nudge": "Use a tool: run, write_file or finish.",
+    "nudge": "Reply with a tool call only. If {reproFile} already fails because of the bug, call finish with claim \"reproduced\"; otherwise keep using run or write_file.",
     "tools": {
       "run": "Run a bash command in the repository directory of the sandbox.",
       "writeFile": "Create or overwrite a file, path relative to the repository directory.",
@@ -78,6 +78,7 @@
     "gateOff": "off: no Jev connector, worker policies only",
     "script": "Reproduction script",
     "output": "Output of the last run",
+    "unfinishedConfirmed": "The model ran out of steps before writing a summary, but the script below fails the same way on every run, so the bug is confirmed.",
     "footer": "<sub>Doorman reproduces reports inside an isolated Fly.io Sprite and gates every command. It never pushes code. Not right? Reply and a maintainer will take it from here.</sub>"
   },
   "prCheck": {

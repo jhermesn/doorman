@@ -87,7 +87,8 @@ export async function triageIssue(
       maxSteps: config.limits.stepsPerJob,
       commandTimeoutMs: config.limits.commandTimeoutMs,
     });
-    if (repro.claim === "reproduced" && !repro.crashed) {
+    const attempted = repro.claim === "reproduced" || repro.claim === "unfinished";
+    if (attempted && !repro.crashed) {
       verification = await verify(
         workers,
         repo.worker,
@@ -105,7 +106,9 @@ export async function triageIssue(
   const wallMs = Date.now() - started;
   const report = renderReport({
     verdict,
-    summary: repro?.summary ?? summaryFor(verdict),
+    summary: unfinishedButProven(repro, verdict)
+      ? text.report.unfinishedConfirmed
+      : (repro?.summary ?? summaryFor(verdict)),
     ...(repro?.missingInfo ? { missingInfo: repro.missingInfo } : {}),
     ...(screening.duplicateOf ? { duplicateOf: screening.duplicateOf.number } : {}),
     ...(verification ? { verification } : {}),
@@ -118,6 +121,12 @@ export async function triageIssue(
   if (opts.write && repo.write) {
     await upsertComment(github, target, report);
     const label = LABELS[verdict];
+    // A rerun replaces the previous verdict's label instead of stacking a contradicting one.
+    for (const old of issue.labels.map((l) => (typeof l === "string" ? l : l.name))) {
+      if (old && old !== label && Object.values(LABELS).includes(old)) {
+        await github.rest.issues.removeLabel({ ...target, name: old });
+      }
+    }
     if (label) await github.rest.issues.addLabels({ ...target, labels: [label] });
   }
   if (opts.mode === "demo" && box && folderId) {
@@ -163,6 +172,10 @@ export async function triageIssue(
     wallMs,
   };
   return { verdict, report, record };
+}
+
+function unfinishedButProven(repro: ReproOutcome | undefined, verdict: Verdict): boolean {
+  return repro?.claim === "unfinished" && verdict === "confirmed";
 }
 
 function summaryFor(verdict: Verdict): string {
