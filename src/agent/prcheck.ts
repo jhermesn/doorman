@@ -1,13 +1,17 @@
+import type { TypeSafeClient } from "@typesafe-ai/sdk";
 import type { Deps } from "../clients.js";
 import type { RepoConfig } from "../config.js";
 import { findDoormanComment, ownerRepo, upsertComment } from "../github.js";
 import { fill, text } from "../text.js";
-import { details, fence, runIcons, scriptFromReport } from "./report.js";
+import { details, fence, outputFromReport, runIcons, scriptFromReport } from "./report.js";
 import { REPRO_FILE } from "./reproduce.js";
 import { prepareWorker } from "./triage.js";
 import { type Verification, verify } from "./verify.js";
 
 const t = text.prCheck;
+
+/** Below this, Jev doesn't think base fails the way the confirmed run did. */
+export const SAME_FAILURE_THRESHOLD = 0.5;
 
 /** GitHub's documented closing keywords: https://docs.github.com/issues/tracking-your-work-with-issues/linking-a-pull-request-to-an-issue */
 const CLAIM = /\b(?:fix(?:e[sd])?|close[sd]?|resolve[sd]?)\s+#(\d+)/i;
@@ -21,22 +25,40 @@ export interface PrCheck {
   issue: number | undefined;
   base?: Verification;
   head?: Verification;
+  /** Jev's probability that base fails the way the confirmed run did; absent without Jev or a stored output. */
+  sameFailureP?: number;
   state: "success" | "failure" | "error";
   description: string;
   report: string;
 }
 
+/**
+ * The scripts decide. Jev's comparison can only withhold a verdict when base fails for some
+ * other reason (a broken install, a changed API); it never turns a failing check green.
+ */
 export function judge(
   base: Verification,
   head: Verification,
+  sameFailureP?: number,
 ): Pick<PrCheck, "state" | "description"> {
   if (base.outcome !== "fails") {
     return { state: "error", description: t.status.baseNoLongerFails };
+  }
+  if (sameFailureP !== undefined && sameFailureP < SAME_FAILURE_THRESHOLD) {
+    return { state: "error", description: t.status.baseFailsDifferently };
   }
   if (head.outcome === "passes") {
     return { state: "success", description: t.status.holds };
   }
   return { state: "failure", description: t.status.stillFails };
+}
+
+async function sameFailure(jev: TypeSafeClient, confirmed: string, base: string): Promise<number> {
+  const { answers } = await jev.systemOne({
+    state: { confirmed_output: confirmed.slice(-4_000), base_output: base.slice(-4_000) },
+    questions: { same: { type: "noul", instructions: text.jev.sameFailure } },
+  });
+  return answers.same.noul;
 }
 
 async function runAt(
@@ -51,17 +73,35 @@ async function runAt(
   return verify(deps.workers, repo.worker, repo.dir, verifyRuns, commandTimeoutMs);
 }
 
-/** Box keeps the archive when configured; otherwise the script comes from Doorman's issue report. */
-async function storedRepro(deps: Deps, repo: string, issue: number): Promise<string | undefined> {
-  const archived = deps.box
-    ? await deps.box.read(await deps.box.folderFor(repo), `repro-${issue}.sh`)
-    : undefined;
-  if (archived) return archived;
-  const comment = await findDoormanComment(deps.github, {
-    ...ownerRepo(repo),
-    issue_number: issue,
-  });
-  return comment?.body ? scriptFromReport(comment.body) : undefined;
+interface StoredRepro {
+  script: string;
+  output?: string;
+}
+
+/** Box keeps the archive when configured; otherwise both come from Doorman's issue report. */
+async function storedRepro(
+  deps: Deps,
+  repo: string,
+  issue: number,
+): Promise<StoredRepro | undefined> {
+  const folder = deps.box ? await deps.box.folderFor(repo) : undefined;
+  const archived = folder
+    ? await Promise.all([
+        deps.box?.read(folder, `repro-${issue}.sh`),
+        deps.box?.read(folder, `repro-${issue}.out`),
+      ])
+    : [];
+  let [script, output] = archived;
+  if (!script || !output) {
+    const comment = await findDoormanComment(deps.github, {
+      ...ownerRepo(repo),
+      issue_number: issue,
+    });
+    const body = comment?.body ?? "";
+    script ??= scriptFromReport(body);
+    output ??= outputFromReport(body);
+  }
+  return script ? { script, ...(output ? { output } : {}) } : undefined;
 }
 
 function row(label: string, v: Verification): string {
@@ -77,21 +117,36 @@ export async function checkPr(
   const target = ownerRepo(repo.repo);
   const { data: pr } = await deps.github.rest.pulls.get({ ...target, pull_number: number });
   const issue = claimedIssue(pr.title, pr.body);
-  const script = issue ? await storedRepro(deps, repo.repo, issue) : undefined;
+  const stored = issue ? await storedRepro(deps, repo.repo, issue) : undefined;
 
-  if (!issue || !script) {
+  if (!issue || !stored) {
     const description = issue ? fill(t.status.noRepro, { issue }) : t.status.noClaim;
     return { issue, state: "error", description, report: description };
   }
 
+  const { script, output } = stored;
   const base = await runAt(deps, repo, pr.base.sha, script);
+  const sameFailureP =
+    deps.jev && output && base.outcome === "fails"
+      ? await sameFailure(deps.jev, output, base.lastOutput)
+      : undefined;
   const head = await runAt(deps, repo, `pull/${number}/head`, script);
-  const verdict = judge(base, head);
+  const verdict = judge(base, head, sameFailureP);
+  const match =
+    sameFailureP === undefined
+      ? []
+      : [
+          fill(sameFailureP < SAME_FAILURE_THRESHOLD ? t.differentFailure : t.sameFailure, {
+            issue,
+          }),
+          "",
+        ];
   const report = [
     fill(text.report.title, { headline: t.headline[verdict.state] }),
     "",
     fill(t.intro, { issue, runs: base.exitCodes.length }),
     "",
+    ...match,
     "| | Runs | Result |",
     "|:--|:--|:--|",
     row(fill(t.base, { ref: pr.base.ref }), base),
@@ -112,5 +167,12 @@ export async function checkPr(
     });
     await upsertComment(deps.github, { ...target, issue_number: number }, report);
   }
-  return { issue, base, head, ...verdict, report };
+  return {
+    issue,
+    base,
+    head,
+    ...(sameFailureP === undefined ? {} : { sameFailureP }),
+    ...verdict,
+    report,
+  };
 }

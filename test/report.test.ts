@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { renderReport, scriptFromReport } from "../src/agent/report.js";
+import { outputFromReport, renderReport, scriptFromReport } from "../src/agent/report.js";
 import { classify } from "../src/agent/verify.js";
 
 const failing = classify(
@@ -92,5 +92,20 @@ describe("renderReport without Jev", () => {
       wallMs: 1,
     });
     expect(md).toContain("no Jev connector");
+  });
+});
+
+describe("outputFromReport", () => {
+  it("given a confirmed report, when read back, then the last run's output is returned", () => {
+    const md = renderReport({
+      verdict: "confirmed",
+      summary: "",
+      verification: failing,
+      script: "node repro.mjs",
+      blockedCommands: 0,
+      gated: true,
+      wallMs: 1_000,
+    });
+    expect(outputFromReport(md)).toBe("expected 2, got 3");
   });
 });

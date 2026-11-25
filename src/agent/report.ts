@@ -70,10 +70,20 @@ export function renderReport(r: ReportInput): string {
   return lines.join("\n");
 }
 
+function fencedAfter(body: string, summary: string, lang: string): string | undefined {
+  const at = body.indexOf(`<summary>${summary}</summary>`);
+  const open = at < 0 ? -1 : body.indexOf(`\`\`\`${lang}\n`, at);
+  const start = open + lang.length + 4;
+  const close = open < 0 ? -1 : body.indexOf("\n```", start);
+  return close < 0 ? undefined : body.slice(start, close);
+}
+
 /** Reads the script back out of a rendered report, so PR checks work without Box. */
 export function scriptFromReport(body: string): string | undefined {
-  const summary = body.indexOf(`<summary>${t.script}</summary>`);
-  const open = summary < 0 ? -1 : body.indexOf("```bash\n", summary);
-  const close = open < 0 ? -1 : body.indexOf("\n```", open + 8);
-  return close < 0 ? undefined : body.slice(open + 8, close);
+  return fencedAfter(body, t.script, "bash");
+}
+
+/** Reads the confirmed run's output back out of a rendered report. */
+export function outputFromReport(body: string): string | undefined {
+  return fencedAfter(body, t.output, "text");
 }
