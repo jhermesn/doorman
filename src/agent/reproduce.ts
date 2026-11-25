@@ -18,7 +18,8 @@ export const REPRO_FILE = ".doorman/repro.sh";
 const t = text.reproduce;
 
 export interface ReproOutcome {
-  claim: "reproduced" | "not-reproduced" | "needs-info";
+  /** "unfinished": the model ran out of steps without calling finish; the script may still prove the bug. */
+  claim: "reproduced" | "not-reproduced" | "needs-info" | "unfinished";
   summary: string;
   missingInfo?: string;
   steps: Step[];
@@ -122,7 +123,7 @@ export async function reproduce(
     finish = Finish.safeParse(call?.input).data;
     messages.push(...result.response.messages, {
       role: "user",
-      content: t.nudge,
+      content: fill(t.nudge, { reproFile: REPRO_FILE }),
     });
   }
 
@@ -143,7 +144,7 @@ export async function reproduce(
   if (!finish) {
     return {
       ...usage,
-      claim: "not-reproduced",
+      claim: "unfinished",
       summary: t.results.noConclusion,
     };
   }
