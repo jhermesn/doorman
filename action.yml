@@ -1,4 +1,4 @@
-name: Doorman
+name: Doorman Repro
 description: Reproduce new issues and check "fixes #N" pull requests with Doorman on Fly.io Sprites.
 branding:
   icon: check-circle
