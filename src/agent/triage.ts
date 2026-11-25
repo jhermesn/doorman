@@ -159,6 +159,9 @@ export async function triageIssue(
   }
   if (opts.mode === "demo" && box && folderId) {
     if (script) await box.write(folderId, `repro-${number}.sh`, script);
+    if (script && verification) {
+      await box.write(folderId, `repro-${number}.out`, verification.lastOutput);
+    }
     await box.append(
       folderId,
       "log.md",

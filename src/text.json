@@ -19,7 +19,8 @@
         "allow": "Reads, lists or edits project files, installs packages, builds, tests, or runs scripts and one-liners",
         "block": "Fetches and runs remote code, opens network connections or listeners outside package installs, reads or sends credentials or environment variables, installs persistence, escalates privileges, or tries to damage or exhaust the machine"
       }
-    }
+    },
+    "sameFailure": "Do these two outputs of the same reproduction script show the same failure? Ignore timings, paths, line numbers and other differences between runs."
   },
   "reproduce": {
     "system": [
@@ -92,12 +93,15 @@
       "holds": "Repro fails on base and passes with this PR",
       "stillFails": "The PR claims a fix, but the repro still fails",
       "noClaim": "The PR doesn't say which issue it fixes",
-      "noRepro": "No confirmed repro stored for #{issue} yet"
+      "noRepro": "No confirmed repro stored for #{issue} yet",
+      "baseFailsDifferently": "The repro fails on base, but not the way it did when the bug was confirmed"
     },
     "intro": "> Ran the confirmed reproduction of #{issue} against the base branch and against this PR, {runs} times each.",
     "base": "base `{ref}`",
     "head": "this PR",
     "script": "Reproduction script for #{issue}",
-    "footer": "<sub>A 🔴 run means the bug is present. Doorman checks claims; it doesn't review style or design.</sub>"
+    "footer": "<sub>A 🔴 run means the bug is present. Doorman checks claims; it doesn't review style or design.</sub>",
+    "sameFailure": "> The failure on the base branch matches the one confirmed on #{issue}.",
+    "differentFailure": "> The reproduction fails on the base branch, but not the way it did when #{issue} was confirmed, so this check can't tell whether the fix works."
   }
 }

@@ -38,3 +38,14 @@ describe("judge", () => {
     expect(judge(v([0, 0, 0]), v([0, 0, 0])).state).toBe("error");
   });
 });
+
+describe("judge with a failure comparison", () => {
+  it.each([
+    ["base fails like the confirmed run and the PR passes", 0.9, [0, 0, 0], "success"],
+    ["base fails like the confirmed run and the PR still fails", 0.9, [1, 1, 1], "failure"],
+    ["base fails for another reason", 0.2, [0, 0, 0], "error"],
+    ["no comparison was possible", undefined, [0, 0, 0], "success"],
+  ] as const)("given %s, when judged, then the state is %4$s", (_name, p, headCodes, expected) => {
+    expect(judge(v([1, 1, 1]), v([...headCodes]), p).state).toBe(expected);
+  });
+});
