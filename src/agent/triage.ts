@@ -6,6 +6,7 @@ import type { RepoConfig } from "../config.js";
 import { ownerRepo, upsertComment } from "../github.js";
 import { type RunMode, type RunRecord, sha256, type Verdict } from "../runlog.js";
 import { text } from "../text.js";
+import { VERSION } from "../version.js";
 import { renderReport } from "./report.js";
 import { REPRO_FILE, type ReproOutcome, reproduce } from "./reproduce.js";
 import { type IssueLike, issueText, screen } from "./screen.js";
@@ -187,19 +188,24 @@ export async function triageIssue(
   const record: RunRecord = {
     runId: randomUUID(),
     ts: new Date().toISOString(),
+    doormanVersion: VERSION,
     repo: repo.repo,
     kind: "issue",
     ref: number,
     mode: opts.mode,
+    layers: { jev: Boolean(jev), duplicates: Boolean(index), notes: Boolean(box) },
     issueSha256: sha256(issueText(issue)),
     screen: {
       injectionP: screening.injectionP,
       kind: screening.kind,
       duplicateOf: screening.duplicateOf ? `#${screening.duplicateOf.number}` : null,
+      duplicateP: screening.duplicateOf?.p ?? null,
     },
     steps: repro?.steps ?? [],
     verdict,
     verifyRuns: verification?.exitCodes ?? [],
+    ...(checkpoint.id ? { checkpoint: checkpoint.id } : {}),
+    ...(checkpoint.error ? { checkpointError: checkpoint.error } : {}),
     model: config.models.reproduce,
     tokensIn: repro?.tokensIn ?? 0,
     tokensOut: repro?.tokensOut ?? 0,
