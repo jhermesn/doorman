@@ -7,12 +7,14 @@ import { checkPr } from "./agent/prcheck.js";
 import { fetchIssue, issueFromMarkdown, triageIssue } from "./agent/triage.js";
 import { createDeps } from "./clients.js";
 import { loadConfig, repoConfig } from "./config.js";
+import { commitBefore } from "./github.js";
 
 const USAGE = `Usage:
-  doorman triage <owner/repo> <issue> [--dry-run] [--issue-file <file.md>] [--config <file>]
+  doorman triage <owner/repo> <issue> [--dry-run] [--shadow] [--issue-file <file.md>] [--config <file>]
   doorman check-pr <owner/repo> <pr> [--dry-run] [--config <file>]
 
   --dry-run      print the report instead of posting it
+  --shadow       read-only replay of a past issue on the commit it was reported against
   --issue-file   triage this Markdown report (first line is the title) instead of
                  fetching <issue>; nothing is written anywhere (eval corpus)
   --config    defaults to $DOORMAN_CONFIG, then ~/.config/doorman/config.json
@@ -31,6 +33,7 @@ async function main(argv: string[]): Promise<number> {
     options: {
       "dry-run": { type: "boolean", default: false },
       "issue-file": { type: "string" },
+      shadow: { type: "boolean", default: false },
       config: {
         type: "string",
         default: process.env.DOORMAN_CONFIG ?? join(homedir(), ".config/doorman/config.json"),
@@ -47,19 +50,24 @@ async function main(argv: string[]): Promise<number> {
   const deps = createDeps(loadConfig(values.config));
   const repo = repoConfig(deps.config, repoName);
   const file = values["issue-file"];
-  const write = !values["dry-run"] && !file;
+  const write = !values["dry-run"] && !file && !values.shadow;
 
   if (command === "triage") {
     const issue = file
       ? issueFromMarkdown(readFileSync(file, "utf8"), number)
       : await fetchIssue(deps.github, repo.repo, number);
-    const mode = file ? "eval" : "demo";
-    const result = await triageIssue(deps, repo, issue, { mode, write });
+    const mode = file ? "eval" : values.shadow ? "shadow" : "demo";
+    const ref =
+      mode === "shadow" && issue.createdAt
+        ? await commitBefore(deps.github, repo.repo, issue.createdAt)
+        : undefined;
+    const result = await triageIssue(deps, repo, issue, { mode, write, ...(ref ? { ref } : {}) });
     console.log(result.report);
     emit({
       level: "info",
       event: "triage",
       ...(file ? { case: basename(file) } : {}),
+      ...(ref ? { commit: ref } : {}),
       ...result.record,
     });
     return 0;

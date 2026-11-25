@@ -20,6 +20,7 @@ export interface TriageResult {
 
 export interface IssueInput extends IssueLike {
   labels: string[];
+  createdAt?: string;
 }
 
 export async function fetchIssue(
@@ -34,6 +35,7 @@ export async function fetchIssue(
     title: data.title,
     body: data.body ?? null,
     labels: data.labels.map((l) => (typeof l === "string" ? l : (l.name ?? ""))),
+    createdAt: data.created_at,
   };
 }
 
@@ -84,14 +86,14 @@ export async function triageIssue(
   deps: Deps,
   repo: RepoConfig,
   issue: IssueInput,
-  opts: { mode: RunMode; write: boolean },
+  opts: { mode: RunMode; write: boolean; ref?: string },
 ): Promise<TriageResult> {
   const started = Date.now();
   const { config, github, jev, model, box, workers } = deps;
   const { number } = issue;
   const target = { ...ownerRepo(repo.repo), issue_number: number };
-  // Eval reports are synthetic: they must not become duplicate candidates for real issues.
-  const index = opts.mode === "eval" ? undefined : deps.issueIndex?.(namespaceFor(repo.repo));
+  // Only live issues feed the duplicate index; eval and shadow runs must not leave traces in it.
+  const index = opts.mode === "demo" ? deps.issueIndex?.(namespaceFor(repo.repo)) : undefined;
   const folderId = box ? await box.folderFor(repo.repo) : undefined;
   const screening = await screen(jev, index, issue);
   let verdict = earlyVerdict(screening);
@@ -102,7 +104,7 @@ export async function triageIssue(
   let restoreMs = 0;
 
   if (!verdict) {
-    restoreMs = await prepareWorker(deps, repo);
+    restoreMs = await prepareWorker(deps, repo, opts.ref);
     repro = await reproduce(model, jev, workers, {
       repo: repo.repo,
       worker: repo.worker,
