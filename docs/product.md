@@ -5,7 +5,8 @@ Doorman does the first pass on bug reports and fix claims, so a maintainer start
 ## What it does
 
 - **Issues.** Screens each new issue, writes a script that shows the bug on a clean worker, runs it 3 times, then comments and labels the issue.
-- **Pull requests.** When a PR says `Fixes #N`, runs the script from #N on the base commit and on the PR. The fix holds when the script fails on base and passes on the PR.
+- **Pull requests.** When a PR says `Fixes #N`, runs the script from #N on the base commit and on the PR. The fix holds when the script fails on base and passes on the PR. If base fails in a different way than when #N was confirmed (a broken install, say), Doorman says it can't tell instead of passing judgement.
+- **Step into the bug.** After confirming a bug, Doorman saves the worker in its failing state. The comment gives the commands to restore it and open a shell there; the next job resets the worker.
 - **Memory.** Reads the maintainer's Markdown notes in Box before each job and appends a line to `log.md`.
 - **Shadow mode.** Replays closed issues of a public repository read-only, to compare its verdicts with what the maintainers decided.
 

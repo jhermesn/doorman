@@ -73,6 +73,8 @@ Endpoint lists match paths, not HTTP methods, and `/repos/x/y/*` doesn't match `
 
 - The home token can still change the policies of `doorman-w-*` Sprites. Doorman's code never calls those routes, but a compromised home Sprite could.
 - Jev is a classifier, not an access control. If it's wrong, the Sprite policies are what hold.
+- Jev also compares a PR's base output with the confirmed run's. That answer can only hold back a verdict; whether a fix passes is always decided by the script's exit codes.
+- Restoring a saved failing state ends any job running on that worker at the time.
 - Without the TypeSafe connector there's no screen and no gate, and the worker policies are the only layer. The comment then says "Gate: off".
 - `sudo` commands pass the gate because they're harmless here; the privileges policy refuses them.
 
