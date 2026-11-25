@@ -58,6 +58,7 @@ export function judge(
 }
 
 async function sameFailure(jev: TypeSafeClient, confirmed: string, base: string): Promise<number> {
+  if (confirmed.trim() === base.trim()) return 1;
   const { answers } = await jev.systemOne({
     state: { confirmed_output: confirmed.slice(-4_000), base_output: base.slice(-4_000) },
     questions: { same: { type: "noul", instructions: text.jev.sameFailure } },
@@ -89,30 +90,33 @@ interface StoredRepro {
   output?: string;
 }
 
-/** Box keeps the archive when configured; otherwise both come from Doorman's issue report. */
+/**
+ * Box keeps the archive when configured; otherwise both come from Doorman's issue report.
+ * The script and its output always come from the same place, so they belong to the same run.
+ */
 async function storedRepro(
   deps: Deps,
   repo: string,
   issue: number,
 ): Promise<StoredRepro | undefined> {
   const folder = deps.box ? await deps.box.folderFor(repo) : undefined;
-  const archived = folder
+  const [boxScript, boxOutput] = folder
     ? await Promise.all([
         deps.box?.read(folder, `repro-${issue}.sh`),
         deps.box?.read(folder, `repro-${issue}.out`),
       ])
     : [];
-  let [script, output] = archived;
-  if (!script || !output) {
-    const comment = await findDoormanComment(deps.github, {
-      ...ownerRepo(repo),
-      issue_number: issue,
-    });
-    const body = comment?.body ?? "";
-    script ??= scriptFromReport(body);
-    output ??= outputFromReport(body);
-  }
-  return script ? { script, ...(output ? { output } : {}) } : undefined;
+  if (boxScript && boxOutput) return { script: boxScript, output: boxOutput };
+  const comment = await findDoormanComment(deps.github, {
+    ...ownerRepo(repo),
+    issue_number: issue,
+  });
+  const body = comment?.body ?? "";
+  const script = scriptFromReport(body);
+  const output = outputFromReport(body);
+  if (script && output) return { script, output };
+  const fallback = boxScript ?? script;
+  return fallback ? { script: fallback } : undefined;
 }
 
 function row(label: string, v: Verification): string {
