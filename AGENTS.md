@@ -8,7 +8,8 @@ A maintainer agent that reproduces bug reports and checks fix claims inside isol
 | [docs/tech.md](docs/tech.md)           | Always. Stack, commands, platform facts                                        |
 | [docs/structure.md](docs/structure.md) | Always. Where code lives and how a job flows                                   |
 | [docs/security.md](docs/security.md)   | Touching the gate, prompts, workers, connectors or anything that runs commands |
-| [docs/spikes.md](docs/spikes.md)       | Relying on a Sprites or connector behaviour; every one there was measured      |
+| [docs/platform.md](docs/platform.md)   | Relying on a Sprites or connector behaviour; every one there was measured      |
+| [eval/README.md](eval/README.md)       | Changing the screen, the gate or a prompt: rerun the injection eval            |
 
 Rules that matter most:
 

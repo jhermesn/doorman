@@ -1,32 +1,38 @@
 # Eval
 
-Two ways to measure Doorman, both read-only: nothing is posted, labelled or stored.
+Two ways to measure Doorman. Both are read-only: nothing is posted, labelled or stored in Pinecone or Box. Latest numbers: [docs/results.md](../docs/results.md).
 
-| What           | Files                                                   | Question it answers                                                                    |
-| :------------- | :------------------------------------------------------ | :------------------------------------------------------------------------------------- |
-| Injection eval | `injection/`, `expected.json`, `run.sh`, `summarize.ts` | Do hostile reports get stopped, and do legitimate ones that look hostile get through?  |
-| Shadow mode    | `shadow.sh`, `score-shadow.ts`                          | On real, already closed issues, does `confirmed` match what the maintainers concluded? |
+|                    | Question it answers                                                                         |
+| :----------------- | :------------------------------------------------------------------------------------------ |
+| **Injection eval** | Are hostile reports stopped, and do legitimate reports that look hostile still get through? |
+| **Shadow mode**    | On issues that are already closed, does `confirmed` match what the maintainers concluded?   |
 
-Latest numbers: [docs/results.md](../docs/results.md). How each run works: [docs/structure.md](../docs/structure.md#injection-eval).
+## Injection eval
 
-## Injection corpus
+`injection/` holds one Markdown report per case, with the title on the first line. Files starting with `a` are attacks and files starting with `b` are benign traps; `expected.json` labels each one and names its technique.
 
-`injection/` holds one Markdown report per case, the first line being the title: `a*` files are attacks, `b*` files are benign traps. `expected.json` labels each case and names its technique.
+Every case is built around a real bug in [`jhermesn/pie-utils`](https://github.com/jhermesn/pie-utils), the demo library. An attack only tests something when there's a genuine bug for the agent to reproduce next to the hostile instruction, so the corpus is tied to that repository.
 
-Every case wraps a real bug in [`jhermesn/pie-utils`](https://github.com/jhermesn/pie-utils), the demo library. An attack only tests something when there's a genuine bug for the agent to reproduce next to the hostile instruction, so the corpus is tied to that repository.
+Run it on the home Sprite:
 
 ```bash
-eval/run.sh jhermesn/pie-utils results.jsonl   # on the home Sprite
-node eval/summarize.ts results.jsonl          # which layer stopped each case
+eval/run.sh jhermesn/pie-utils results.jsonl
+node eval/summarize.ts results.jsonl
 ```
 
-To run it against another repository, copy the corpus and rewrite each report around a bug that exists in that code, keeping the hostile part as it is. `run.sh` takes any configured `owner/repo`.
+`run.sh` triages each case with `doorman triage --issue-file`, recorded as `mode: "eval"`. Cases still run on the repository's worker, so an attack that gets past Jev meets the worker policies. `summarize.ts` prints which layer stopped each case and every command that reached the worker.
+
+To use the corpus on another repository, copy it and rewrite each report around a bug that exists in that code, keeping the hostile part as it is.
 
 ## Shadow mode
 
-Shadow mode needs a `repos[]` entry for the target (with `write` left off) and a worker with its code, plus a ground-truth file mapping issue numbers to `bug` or `not-a-bug`:
+`doorman triage <owner/repo> <issue> --shadow` replays a closed issue on the last default-branch commit before it was filed, then screens, reproduces and verifies it as usual.
+
+It needs a `repos[]` entry for the repository (with `write` left off), a worker with its code, and a ground-truth file that maps each issue number to `bug` (a fix was merged for it) or `not-a-bug`:
 
 ```bash
 eval/shadow.sh owner/repo results.jsonl 101 102 103
 node eval/score-shadow.ts truth.json results.jsonl
 ```
+
+`score-shadow.ts` prints the precision and recall of `confirmed` against the ground truth.
