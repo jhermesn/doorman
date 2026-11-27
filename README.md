@@ -12,6 +12,9 @@ Doorman reproduces every new bug report in a locked-down [Fly.io Sprite](https:/
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-6d28d9.svg)](LICENSE)
 [![Runs on Fly.io Sprites](https://img.shields.io/badge/runs%20on-Fly.io%20Sprites-8b5cf6.svg)](https://fly.io/sprites)
 
+<a href="https://youtu.be/KiTsz4TA2Lw"><img src="https://img.youtube.com/vi/KiTsz4TA2Lw/maxresdefault.jpg" alt="Demo video: Doorman confirms a new bug report, checks two pull requests that claim to fix a bug and refuses an issue with a hidden prompt injection" width="720"></a><br>
+<sub>▶ Watch the demo (4 min)</sub>
+
 </div>
 
 ## What it does
